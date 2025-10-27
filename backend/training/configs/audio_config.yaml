@@ -1,0 +1,319 @@
+# Audio Model Training Configuration
+# Multi-Modal Deepfake Detection System - Audio Modality
+
+# Model Architecture
+model:
+  name: "ecapa_tdnn_deepfake"
+  architecture: "ecapa_tdnn"
+  pretrained: true
+  freeze_backbone: false
+  num_classes: 2
+
+  # ECAPA-TDNN specific parameters
+  channels: [1024, 1024, 1024, 1024, 3072]
+  kernel_sizes: [5, 3, 3, 3, 1]
+  dilations: [1, 2, 3, 4, 1]
+  attention_channels: 128
+  global_context: true
+
+  # Alternative architectures
+  alternatives:
+    wav2vec2:
+      model_name: "facebook/wav2vec2-base"
+      freeze_feature_extractor: false
+      attention_dropout: 0.1
+      hidden_dropout: 0.1
+      feat_proj_dropout: 0.0
+      layerdrop: 0.1
+
+    rawnet:
+      sinc_kernel_size: 251
+      sinc_stride: 1
+      first_conv_channels: 128
+      in_channels: 1
+      filts: [128, 128, 256, 256]
+
+    transformer:
+      d_model: 512
+      nhead: 8
+      num_encoder_layers: 6
+      dim_feedforward: 2048
+      max_seq_length: 1000
+
+# Dataset Configuration
+dataset:
+  name: "deepfake_audio_dataset"
+  data_root: "/data/deepfake_audio"
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+
+  # Audio processing parameters
+  audio_params:
+    sample_rate: 16000
+    duration_range: [3, 10]  # seconds
+    chunk_duration: 4  # seconds for training
+    overlap: 0.5
+    min_speech_ratio: 0.7
+
+  # Quality filters
+  min_duration_sec: 1
+  max_duration_sec: 30
+  min_snr_db: 10
+  max_silence_ratio: 0.5
+
+  # Supported formats
+  audio_formats: [".wav", ".mp3", ".flac", ".ogg", ".m4a"]
+
+# Feature Extraction
+features:
+  # Raw audio features
+  raw_audio:
+    enabled: true
+    normalize: true
+
+  # Spectral features
+  spectrogram:
+    enabled: true
+    n_fft: 1024
+    hop_length: 256
+    win_length: 1024
+    window: "hann"
+
+  # Mel-scale features
+  mel_spectrogram:
+    enabled: true
+    n_mels: 80
+    fmin: 0
+    fmax: 8000
+
+  # MFCC features
+  mfcc:
+    enabled: true
+    n_mfcc: 13
+    dct_type: 2
+
+  # Voice activity detection
+  vad:
+    enabled: true
+    method: "energy"  # energy, spectral, webrtc
+    frame_length: 0.025
+    frame_shift: 0.010
+
+# Data Augmentation
+augmentation:
+  train:
+    enabled: true
+    techniques:
+      # Time-domain augmentations
+      - name: "time_stretch"
+        probability: 0.5
+        params:
+          rate_range: [0.8, 1.2]
+
+      - name: "pitch_shift"
+        probability: 0.5
+        params:
+          n_steps_range: [-4, 4]
+
+      - name: "add_noise"
+        probability: 0.6
+        params:
+          noise_types: ["white", "pink", "brown"]
+          snr_range: [10, 30]
+
+      - name: "speed_change"
+        probability: 0.4
+        params:
+          speed_range: [0.9, 1.1]
+
+      # Frequency-domain augmentations
+      - name: "freq_mask"
+        probability: 0.3
+        params:
+          freq_mask_param: 15
+          num_masks: 2
+
+      - name: "time_mask"
+        probability: 0.3
+        params:
+          time_mask_param: 35
+          num_masks: 2
+
+      # Environmental augmentations
+      - name: "room_impulse_response"
+        probability: 0.2
+        params:
+          reverb_types: ["small_room", "large_room", "hall"]
+
+      - name: "codec_simulation"
+        probability: 0.3
+        params:
+          codecs: ["mp3", "aac", "opus"]
+          bitrates: [64, 128, 256]
+
+      # Voice-specific augmentations
+      - name: "vocal_tract_length_perturbation"
+        probability: 0.2
+        params:
+          alpha_range: [0.9, 1.1]
+
+      - name: "formant_shift"
+        probability: 0.3
+        params:
+          shift_range: [-200, 200]  # Hz
+
+  validation:
+    enabled: true
+    techniques:
+      - name: "center_crop"
+        params:
+          duration: 4  # seconds
+
+# Training Configuration
+training:
+  # Basic settings
+  batch_size: 16
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 1e-4
+
+  # Audio-specific settings
+  sequence_length: 64000  # samples (4 seconds at 16kHz)
+  overlap_ratio: 0.5
+
+  # Learning rate scheduling
+  scheduler:
+    name: "cosine_annealing"
+    params:
+      T_max: 100
+      eta_min: 1e-6
+
+  # Optimization
+  optimizer:
+    name: "adamw"
+    params:
+      betas: [0.9, 0.999]
+      eps: 1e-8
+
+  # Loss function
+  loss:
+    name: "cross_entropy"
+    params:
+      label_smoothing: 0.1
+
+    # Additional losses
+    auxiliary_losses:
+      prototypical_loss:
+        weight: 0.1
+        enabled: true
+
+      contrastive_loss:
+        weight: 0.05
+        temperature: 0.1
+        enabled: true
+
+# Audio Processing
+audio_processing:
+  # Preprocessing
+  preprocessing:
+    silence_removal: true
+    dc_offset_removal: true
+    preemphasis: 0.97
+
+    # Normalization
+    normalization:
+      method: "rms"  # rms, peak, lufs
+      target_level: -20  # dB
+
+    # Voice activity detection
+    vad:
+      enabled: true
+      aggressiveness: 2  # 0-3, higher = more aggressive
+      frame_duration: 30  # ms
+
+    # Noise reduction
+    noise_reduction:
+      enabled: true
+      method: "spectral_gating"
+      noise_gate_threshold: -40  # dB
+
+  # Feature extraction
+  feature_extraction:
+    # Spectral features
+    spectral_features:
+      enabled: true
+      features: ["centroid", "bandwidth", "rolloff", "contrast"]
+
+    # Prosodic features  
+    prosodic_features:
+      enabled: true
+      features: ["f0", "energy", "duration", "rhythm"]
+
+    # Voice quality features
+    voice_quality:
+      enabled: true
+      features: ["jitter", "shimmer", "hnr", "gne"]
+
+# Evaluation
+evaluation:
+  metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "auc_roc"
+    - "auc_pr"
+    - "equal_error_rate"
+    - "detection_cost_function"
+
+  # Audio-specific metrics
+  audio_metrics:
+    - "speaker_verification_eer"
+    - "voice_quality_correlation"
+    - "spectral_distance"
+
+  validation_frequency: 2
+  test_time_augmentation: true
+
+# Hardware and Performance
+hardware:
+  device: "auto"
+  num_workers: 8
+  pin_memory: true
+  use_mixed_precision: true
+
+# Logging
+logging:
+  project_name: "deepfake_detection_audio"
+  experiment_name: "ecapa_tdnn_baseline"
+  log_frequency: 100
+
+  # Audio-specific logging
+  log_audio: true
+  max_audio_samples_to_log: 20
+
+  wandb:
+    enabled: true
+    entity: "deepfake_detection"
+    tags: ["audio", "ecapa_tdnn", "voice"]
+
+# Checkpoints
+checkpoints:
+  save_dir: "checkpoints/audio"
+  save_frequency: 5
+  save_top_k: 3
+  monitor_metric: "equal_error_rate"
+  mode: "min"
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+
+# Paths
+paths:
+  data_root: "/data/deepfake_detection/audio"
+  output_root: "outputs/audio"
+  cache_root: "cache/audio"
+  temp_root: "temp/audio"

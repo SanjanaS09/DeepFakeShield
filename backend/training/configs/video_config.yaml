@@ -1,0 +1,277 @@
+# Video Model Training Configuration
+# Multi-Modal Deepfake Detection System - Video Modality
+
+# Model Architecture
+model:
+  name: "i3d_deepfake"
+  architecture: "i3d"
+  backbone: "resnet50"
+  pretrained: true
+  freeze_backbone: false
+  num_classes: 2
+  dropout_rate: 0.5
+
+  # Video-specific parameters
+  input_shape: [16, 224, 224, 3]  # [frames, height, width, channels]
+  temporal_kernel_size: 3
+  temporal_stride: 1
+
+  # Alternative architectures
+  alternatives:
+    slowfast:
+      slow_pathway_frames: 32
+      fast_pathway_frames: 128
+      alpha: 4  # Fast pathway frame rate / slow pathway frame rate
+      beta: 0.125  # Fast pathway channel ratio
+
+    x3d:
+      variant: "x3d_m"
+      input_clip_length: 16
+      input_crop_size: 224
+
+    video_transformer:
+      name: "video_swin_transformer"
+      patch_size: [2, 4, 4]
+      window_size: [8, 7, 7]
+      embed_dim: 96
+
+# Dataset Configuration
+dataset:
+  name: "deepfake_video_dataset"
+  data_root: "/data/deepfake_videos"
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+
+  # Video processing
+  video_params:
+    fps: 30
+    duration_range: [1, 10]  # seconds
+    frame_sampling: "uniform"  # uniform, random, dense
+    frames_per_clip: 16
+    clips_per_video: 5
+
+  # Quality filters
+  min_resolution: [224, 224]
+  max_file_size_gb: 2
+  min_duration_sec: 1
+  max_duration_sec: 30
+
+  # Supported formats
+  video_formats: [".mp4", ".avi", ".mov", ".mkv", ".webm"]
+
+# Data Augmentation
+augmentation:
+  train:
+    enabled: true
+    techniques:
+      # Spatial augmentations (applied to all frames)
+      - name: "random_resize_crop"
+        probability: 0.8
+        params:
+          scale: [0.8, 1.0]
+          ratio: [0.9, 1.1]
+
+      - name: "horizontal_flip"
+        probability: 0.5
+
+      - name: "color_jitter"
+        probability: 0.6
+        params:
+          brightness: 0.2
+          contrast: 0.2
+          saturation: 0.2
+          hue: 0.1
+
+      # Temporal augmentations
+      - name: "temporal_crop"
+        probability: 0.7
+        params:
+          min_frames: 8
+          max_frames: 32
+
+      - name: "temporal_skip"
+        probability: 0.3
+        params:
+          max_skip: 2
+
+      - name: "reverse_video"
+        probability: 0.2
+
+      # Noise and degradation
+      - name: "gaussian_noise"
+        probability: 0.3
+        params:
+          std: [0.01, 0.05]
+
+      - name: "motion_blur"
+        probability: 0.2
+        params:
+          kernel_size: [5, 15]
+
+      - name: "compression_artifacts"
+        probability: 0.4
+        params:
+          quality: [60, 95]
+
+      # Face-specific augmentations
+      - name: "face_swap_simulation"
+        probability: 0.1
+        params:
+          blend_ratio: [0.7, 1.0]
+
+      - name: "temporal_face_consistency"
+        probability: 0.2
+        params:
+          inconsistency_prob: 0.3
+
+  validation:
+    enabled: true
+    techniques:
+      - name: "center_crop"
+        params:
+          size: [224, 224]
+
+      - name: "temporal_center_crop"
+        params:
+          frames: 16
+
+# Training Configuration
+training:
+  # Basic settings
+  batch_size: 8  # Smaller due to memory constraints
+  num_epochs: 50
+  learning_rate: 0.0001
+  weight_decay: 1e-4
+
+  # Gradient settings
+  gradient_clip_value: 1.0
+  accumulate_grad_batches: 4  # Effective batch size = 32
+
+  # Learning rate scheduling
+  scheduler:
+    name: "cosine_annealing_warm_restart"
+    params:
+      T_0: 10
+      T_mult: 2
+      eta_min: 1e-7
+
+  # Optimization
+  optimizer:
+    name: "adamw"
+    params:
+      betas: [0.9, 0.999]
+      eps: 1e-8
+
+  # Loss function
+  loss:
+    name: "cross_entropy"
+    params:
+      label_smoothing: 0.1
+
+    # Additional losses
+    auxiliary_losses:
+      temporal_consistency:
+        weight: 0.1
+        enabled: true
+
+      frame_level_loss:
+        weight: 0.05
+        enabled: true
+
+# Video Processing
+video_processing:
+  # Face detection and tracking
+  face_detection:
+    enabled: true
+    detector: "mediapipe"
+    tracking: true
+    crop_margin: 0.3
+    min_face_size: 64
+    max_faces: 1  # Focus on primary face
+
+    # Face quality filtering
+    quality_threshold: 0.5
+    blur_threshold: 0.7
+    occlusion_threshold: 0.8
+
+  # Optical flow computation
+  optical_flow:
+    enabled: true
+    method: "farneback"  # farneback, lucas_kanade
+    window_size: 3
+
+  # Frame sampling strategies
+  sampling:
+    strategy: "uniform"  # uniform, random, keyframe, motion
+    overlap: 0.5
+    min_motion_threshold: 0.1
+
+# Evaluation
+evaluation:
+  metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "auc_roc"
+    - "auc_pr"
+    - "temporal_consistency_score"
+    - "per_frame_accuracy"
+
+  # Video-specific evaluation
+  video_metrics:
+    - "video_level_accuracy"
+    - "frame_level_accuracy" 
+    - "temporal_smoothness"
+    - "detection_latency"
+
+  validation_frequency: 2  # Every 2 epochs
+  test_time_augmentation: true
+
+# Hardware and Performance
+hardware:
+  device: "auto"
+  num_workers: 4  # Reduced for video processing
+  pin_memory: true
+  use_mixed_precision: true
+
+  # Memory optimization
+  memory_optimization:
+    gradient_checkpointing: true
+    cpu_offload: false
+    low_memory_mode: true
+
+# Logging
+logging:
+  project_name: "deepfake_detection_video"
+  experiment_name: "i3d_baseline"
+  log_frequency: 50
+
+  # Video-specific logging
+  log_videos: true
+  max_videos_to_log: 10
+
+  wandb:
+    enabled: true
+    entity: "deepfake_detection"
+    tags: ["video", "i3d", "temporal"]
+
+# Checkpoints
+checkpoints:
+  save_dir: "checkpoints/video"
+  save_frequency: 5
+  save_top_k: 3
+  monitor_metric: "auc_roc"
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+
+# Paths
+paths:
+  data_root: "/data/deepfake_detection/video"
+  output_root: "outputs/video"
+  cache_root: "cache/video"
+  temp_root: "temp/video"

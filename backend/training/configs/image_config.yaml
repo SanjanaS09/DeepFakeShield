@@ -1,0 +1,283 @@
+# Image Model Training Configuration
+# Multi-Modal Deepfake Detection System - Image Modality
+
+# Model Architecture
+model:
+  name: "xception_deepfake"
+  architecture: "xception"
+  backbone: "xception"
+  pretrained: true
+  freeze_backbone: false
+  num_classes: 2
+  dropout_rate: 0.5
+  input_size: [299, 299, 3]
+
+  # Alternative architectures
+  alternatives:
+    efficientnet:
+      name: "efficientnet_b4"
+      input_size: [380, 380, 3]
+      dropout_rate: 0.3
+    resnet:
+      name: "resnet50"
+      input_size: [224, 224, 3]
+      dropout_rate: 0.4
+    vision_transformer:
+      name: "vit_base_patch16_224"
+      input_size: [224, 224, 3]
+      patch_size: 16
+
+# Dataset Configuration
+dataset:
+  name: "deepfake_image_dataset"
+  data_root: "/data/deepfake_images"
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+
+  # Class distribution
+  classes:
+    real: 0
+    deepfake: 1
+
+  # Data paths
+  paths:
+    real_images: "real"
+    fake_images: "fake"
+    metadata: "metadata.csv"
+
+  # Supported formats
+  image_formats: [".jpg", ".jpeg", ".png", ".bmp", ".tiff"]
+
+  # Quality filters
+  min_resolution: [224, 224]
+  max_file_size_mb: 50
+  min_quality_score: 0.3
+
+# Data Augmentation
+augmentation:
+  train:
+    enabled: true
+    techniques:
+      # Geometric transformations
+      - name: "random_rotation"
+        probability: 0.5
+        params:
+          degrees: [-15, 15]
+
+      - name: "random_resize_crop"
+        probability: 0.8
+        params:
+          scale: [0.8, 1.0]
+          ratio: [0.9, 1.1]
+
+      - name: "horizontal_flip"
+        probability: 0.5
+
+      # Color augmentations
+      - name: "color_jitter"
+        probability: 0.6
+        params:
+          brightness: 0.2
+          contrast: 0.2
+          saturation: 0.2
+          hue: 0.1
+
+      - name: "random_grayscale"
+        probability: 0.1
+
+      # Noise and blur
+      - name: "gaussian_noise"
+        probability: 0.3
+        params:
+          std: [0.01, 0.05]
+
+      - name: "gaussian_blur"
+        probability: 0.2
+        params:
+          kernel_size: [3, 7]
+          sigma: [0.1, 2.0]
+
+      # Compression simulation
+      - name: "jpeg_compression"
+        probability: 0.4
+        params:
+          quality: [60, 95]
+
+      # Face-specific augmentations
+      - name: "face_cutout"
+        probability: 0.2
+        params:
+          cutout_ratio: [0.1, 0.3]
+
+      - name: "landmark_noise"
+        probability: 0.3
+        params:
+          noise_std: 2.0
+
+  validation:
+    enabled: true
+    techniques:
+      - name: "center_crop"
+        params:
+          size: [299, 299]
+
+      - name: "normalize"
+        params:
+          mean: [0.485, 0.456, 0.406]
+          std: [0.229, 0.224, 0.225]
+
+# Training Configuration
+training:
+  # Basic settings
+  batch_size: 32
+  num_epochs: 100
+  learning_rate: 0.001
+  weight_decay: 1e-4
+
+  # Learning rate scheduling
+  scheduler:
+    name: "cosine_annealing"
+    params:
+      T_max: 100
+      eta_min: 1e-6
+    alternatives:
+      step_lr:
+        step_size: 30
+        gamma: 0.1
+      reduce_on_plateau:
+        patience: 10
+        factor: 0.5
+
+  # Optimization
+  optimizer:
+    name: "adamw"
+    params:
+      betas: [0.9, 0.999]
+      eps: 1e-8
+    alternatives:
+      sgd:
+        momentum: 0.9
+        nesterov: true
+      adam:
+        betas: [0.9, 0.999]
+
+  # Loss function
+  loss:
+    name: "cross_entropy"
+    params:
+      label_smoothing: 0.1
+    alternatives:
+      focal_loss:
+        alpha: 1.0
+        gamma: 2.0
+      weighted_cross_entropy:
+        weights: [1.0, 1.2]  # Higher weight for deepfake class
+
+  # Regularization
+  regularization:
+    dropout: 0.5
+    mixup:
+      enabled: true
+      alpha: 0.2
+    cutmix:
+      enabled: true
+      alpha: 1.0
+    early_stopping:
+      patience: 15
+      min_delta: 0.001
+
+# Validation and Metrics
+evaluation:
+  metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "auc_roc"
+    - "auc_pr"
+    - "confusion_matrix"
+
+  validation_frequency: 1  # Every epoch
+  save_best_model: true
+  monitor_metric: "auc_roc"
+  mode: "max"
+
+# Hardware and Performance
+hardware:
+  device: "auto"  # auto, cpu, cuda, mps
+  num_workers: 8
+  pin_memory: true
+  use_mixed_precision: true
+  compile_model: false  # PyTorch 2.0 compile
+
+  # Multi-GPU settings
+  multi_gpu:
+    enabled: false
+    strategy: "ddp"  # ddp, dp, fsdp
+    find_unused_parameters: false
+
+# Logging and Checkpoints
+logging:
+  project_name: "deepfake_detection_image"
+  experiment_name: "xception_baseline"
+  log_frequency: 100  # Steps
+
+  # Wandb configuration
+  wandb:
+    enabled: true
+    entity: "deepfake_detection"
+    tags: ["image", "xception", "baseline"]
+
+  # Tensorboard
+  tensorboard:
+    enabled: true
+    log_dir: "logs/tensorboard"
+
+  # Checkpoints
+  checkpoints:
+    save_dir: "checkpoints/image"
+    save_frequency: 5  # Epochs
+    save_top_k: 3
+    save_last: true
+
+# Data Loading
+data_loading:
+  prefetch_factor: 2
+  persistent_workers: true
+  drop_last: true
+
+  # Face detection for cropping
+  face_detection:
+    enabled: true
+    detector: "mediapipe"  # mediapipe, dlib, opencv
+    crop_margin: 0.2
+    min_face_size: 100
+    fallback_to_center_crop: true
+
+# Model Deployment
+deployment:
+  export_formats: ["pytorch", "onnx", "tensorrt"]
+  optimization:
+    quantization: false
+    pruning: false
+    distillation: false
+
+  # Model serving
+  serving:
+    batch_size: 16
+    max_sequence_length: null
+    temperature: 1.0
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+  benchmark: false
+
+# Paths and Storage
+paths:
+  data_root: "/data/deepfake_detection"
+  output_root: "outputs/image"
+  cache_root: "cache/image"
+  temp_root: "temp/image"

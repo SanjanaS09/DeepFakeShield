@@ -1,0 +1,361 @@
+# Fusion Model Training Configuration
+# Multi-Modal Deepfake Detection System - Multi-Modal Fusion
+
+# Model Architecture
+model:
+  name: "multimodal_fusion_transformer"
+  architecture: "fusion_transformer"
+  num_classes: 2
+
+  # Fusion-specific parameters
+  fusion_method: "attention"  # attention, concatenation, bilinear, cross_attention
+  hidden_dim: 512
+  num_attention_heads: 8
+  num_layers: 4
+  dropout_rate: 0.1
+
+  # Modality-specific encoders
+  modality_encoders:
+    visual:
+      enabled: true
+      encoder_type: "cnn"  # cnn, transformer, resnet
+      feature_dim: 2048
+      pretrained: true
+      freeze: false
+
+    temporal:
+      enabled: true
+      encoder_type: "lstm"  # lstm, gru, transformer
+      feature_dim: 1024
+      hidden_dim: 512
+      num_layers: 2
+      bidirectional: true
+
+    audio:
+      enabled: true
+      encoder_type: "transformer"  # transformer, cnn, rnn
+      feature_dim: 768
+      num_heads: 8
+      num_layers: 3
+
+  # Cross-modal attention
+  cross_modal_attention:
+    enabled: true
+    attention_type: "scaled_dot_product"  # scaled_dot_product, additive
+    num_heads: 8
+    temperature: 1.0
+
+  # Fusion strategies
+  fusion_strategies:
+    early_fusion:
+      enabled: false
+      concatenate_features: true
+
+    late_fusion:
+      enabled: true
+      weighted_average: true
+      learned_weights: true
+
+    intermediate_fusion:
+      enabled: true
+      fusion_layers: [2, 4]
+      cross_attention: true
+
+# Dataset Configuration
+dataset:
+  name: "multimodal_deepfake_dataset"
+  data_root: "/data/deepfake_multimodal"
+  train_split: 0.7
+  val_split: 0.15
+  test_split: 0.15
+
+  # Modality requirements
+  required_modalities: ["visual", "audio"]  # At least these must be present
+  optional_modalities: ["temporal"]
+
+  # Synchronization
+  synchronization:
+    enabled: true
+    tolerance_ms: 100
+    alignment_method: "cross_correlation"  # cross_correlation, dtw
+
+  # Data filtering
+  quality_filters:
+    min_duration_sec: 3
+    max_duration_sec: 15
+    min_visual_quality: 0.5
+    min_audio_quality: 0.6
+    sync_quality_threshold: 0.7
+
+# Feature Configuration
+features:
+  # Pre-extracted features
+  use_precomputed_features: false
+
+  # Visual features
+  visual:
+    extractor: "resnet50"
+    layer: "avgpool"
+    feature_dim: 2048
+    temporal_pooling: "average"  # average, max, attention
+
+  # Temporal features
+  temporal:
+    extractor: "i3d"
+    layer: "logits"
+    feature_dim: 1024
+    frame_sampling: "uniform"
+    frames_per_clip: 16
+
+  # Audio features
+  audio:
+    extractor: "wav2vec2"
+    layer: "last_hidden_state"
+    feature_dim: 768
+    temporal_pooling: "attention"
+    segment_duration: 4  # seconds
+
+# Data Augmentation
+augmentation:
+  train:
+    enabled: true
+
+    # Cross-modal augmentations
+    techniques:
+      # Temporal misalignment simulation
+      - name: "temporal_misalignment"
+        probability: 0.3
+        params:
+          max_offset_ms: 200
+
+      # Modality dropout
+      - name: "modality_dropout"
+        probability: 0.2
+        params:
+          dropout_prob: 0.1
+
+      # Cross-modal noise
+      - name: "cross_modal_noise"
+        probability: 0.4
+        params:
+          noise_level: 0.05
+
+      # Feature corruption
+      - name: "feature_corruption"
+        probability: 0.3
+        params:
+          corruption_ratio: 0.1
+
+      # Temporal shifting
+      - name: "temporal_shift"
+        probability: 0.5
+        params:
+          max_shift_ratio: 0.1
+
+# Training Configuration
+training:
+  # Basic settings
+  batch_size: 16
+  num_epochs: 80
+  learning_rate: 0.0005
+  weight_decay: 1e-4
+
+  # Multi-modal specific settings
+  modality_weights:
+    visual: 1.0
+    temporal: 0.8
+    audio: 1.2
+
+  # Curriculum learning
+  curriculum_learning:
+    enabled: true
+    stages:
+      - stage: 1
+        epochs: 20
+        modalities: ["visual", "audio"]
+        difficulty: "easy"
+
+      - stage: 2
+        epochs: 30
+        modalities: ["visual", "temporal", "audio"]
+        difficulty: "medium"
+
+      - stage: 3
+        epochs: 30
+        modalities: ["visual", "temporal", "audio"]
+        difficulty: "hard"
+
+  # Learning rate scheduling
+  scheduler:
+    name: "cosine_annealing_warm_restart"
+    params:
+      T_0: 20
+      T_mult: 1
+      eta_min: 1e-7
+
+  # Optimization
+  optimizer:
+    name: "adamw"
+    params:
+      betas: [0.9, 0.999]
+      eps: 1e-8
+
+  # Loss function
+  loss:
+    name: "cross_entropy"
+    params:
+      label_smoothing: 0.1
+
+    # Multi-modal losses
+    auxiliary_losses:
+      # Modality-specific losses
+      visual_loss:
+        weight: 0.3
+        enabled: true
+
+      temporal_loss:
+        weight: 0.2
+        enabled: true
+
+      audio_loss:
+        weight: 0.3
+        enabled: true
+
+      # Consistency losses
+      cross_modal_consistency:
+        weight: 0.1
+        enabled: true
+
+      temporal_consistency:
+        weight: 0.1
+        enabled: true
+
+      # Contrastive learning
+      contrastive_loss:
+        weight: 0.05
+        temperature: 0.1
+        enabled: true
+
+# Cross-Modal Learning
+cross_modal_learning:
+  # Alignment techniques
+  alignment:
+    canonical_correlation_analysis: false
+    adversarial_alignment: true
+    contrastive_alignment: true
+
+  # Knowledge distillation
+  knowledge_distillation:
+    enabled: true
+    teacher_modalities: ["visual", "audio"]
+    student_modality: "fusion"
+    temperature: 4.0
+    alpha: 0.3
+
+  # Self-supervised learning
+  self_supervised:
+    enabled: true
+    tasks:
+      - "temporal_order_prediction"
+      - "audio_visual_correspondence"
+      - "cross_modal_reconstruction"
+
+# Evaluation
+evaluation:
+  metrics:
+    - "accuracy"
+    - "precision"
+    - "recall"
+    - "f1_score"
+    - "auc_roc"
+    - "auc_pr"
+
+  # Fusion-specific metrics
+  fusion_metrics:
+    - "modality_contribution_analysis"
+    - "cross_modal_consistency_score"
+    - "ablation_study_results"
+    - "attention_visualization"
+
+  # Robustness evaluation
+  robustness_tests:
+    - "modality_dropout"
+    - "noise_injection"
+    - "temporal_misalignment"
+    - "quality_degradation"
+
+  validation_frequency: 2
+  compute_attention_maps: true
+
+# Hardware and Performance
+hardware:
+  device: "auto"
+  num_workers: 6
+  pin_memory: true
+  use_mixed_precision: true
+
+  # Memory optimization for multi-modal
+  memory_optimization:
+    gradient_checkpointing: true
+    feature_caching: true
+    batch_size_scaling: true
+
+# Logging
+logging:
+  project_name: "deepfake_detection_fusion"
+  experiment_name: "multimodal_transformer_baseline"
+  log_frequency: 50
+
+  # Multi-modal specific logging
+  log_attention_maps: true
+  log_feature_distributions: true
+  log_modality_contributions: true
+
+  wandb:
+    enabled: true
+    entity: "deepfake_detection"
+    tags: ["multimodal", "fusion", "transformer", "cross_modal"]
+
+# Checkpoints
+checkpoints:
+  save_dir: "checkpoints/fusion"
+  save_frequency: 5
+  save_top_k: 3
+  monitor_metric: "auc_roc"
+  mode: "max"
+
+# Model Interpretation
+interpretation:
+  # Attention analysis
+  attention_analysis:
+    enabled: true
+    visualize_attention: true
+    save_attention_maps: true
+
+  # Modality ablation
+  modality_ablation:
+    enabled: true
+    test_all_combinations: true
+
+  # Feature importance
+  feature_importance:
+    method: "integrated_gradients"  # integrated_gradients, lime, shap
+    num_samples: 100
+
+# Reproducibility
+reproducibility:
+  seed: 42
+  deterministic: true
+
+# Paths
+paths:
+  data_root: "/data/deepfake_detection/multimodal"
+  output_root: "outputs/fusion"
+  cache_root: "cache/fusion"
+  temp_root: "temp/fusion"
+
+  # Pre-trained model paths
+  pretrained_models:
+    visual: "pretrained/visual_encoder.pth"
+    temporal: "pretrained/temporal_encoder.pth"
+    audio: "pretrained/audio_encoder.pth"
