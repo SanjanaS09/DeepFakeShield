@@ -1,0 +1,39 @@
+.upload-wrapper {
+  padding: 2rem;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.upload-pane {
+  min-height: 400px;
+}
+
+.upload-pane h2 {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.analysis-result {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.result-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+@media (max-width: 768px) {
+  .result-section {
+    grid-template-columns: 1fr;
+  }
+}
+
+.xai-block {
+  padding: 1rem;
+  background: rgba(39, 65, 125, 0.2);
+  border-radius: 12px;
+}

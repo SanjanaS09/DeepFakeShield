@@ -1,0 +1,10 @@
+.file-drop {
+  padding: 2em;
+  text-align: center;
+  cursor: pointer;
+  border: 2px dashed #61bdaf77;
+  transition: background 0.2s;
+}
+.file-drop:hover {
+  background: rgba(80,210,255,0.07);
+}

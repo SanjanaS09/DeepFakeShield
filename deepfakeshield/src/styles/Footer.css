@@ -1,0 +1,21 @@
+.glass-footer {
+  width: 100%;
+  padding: 1.5em;
+  background: rgba(23, 32, 55, 0.35);
+  backdrop-filter: blur(11px);
+  color: #e0eaff;
+  text-align: center;
+  border-top: 1px solid rgba(230, 240, 255, 0.08);
+  font-size: 1em;
+  margin-top: 3rem;
+}
+
+.glass-footer a {
+  color: #54ACBF;
+  margin: 0 1rem;
+  text-decoration: none;
+}
+
+.glass-footer a:hover {
+  color: #A7EBF2;
+}

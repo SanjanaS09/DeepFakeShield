@@ -1,0 +1,8 @@
+.main-gradient-bg {
+  min-height: 100vh;
+  background: radial-gradient(ellipse 120% 90% at 40% 0%, #233160 69%, #191834 100%) fixed;
+  background-blend-mode: lighten;
+}
+.section-gradient {
+  background: linear-gradient(120deg, #011c40, #023859 60%, #26658c);
+}

@@ -1,0 +1,18 @@
+.glass-card {
+  background: rgba(39, 65, 125, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(12, 12, 34, 0.20);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.15);
+  padding: 2rem;
+  margin: 1.5rem 0;
+}
+input, textarea, .glass-input {
+  background: rgba(39,65,125,0.17);
+  border: 1px solid rgba(200, 220, 255, 0.15);
+  backdrop-filter: blur(8px);
+  border-radius: 6px;
+  color: #eefeef;
+  padding: 0.7em;
+}
