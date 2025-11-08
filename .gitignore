@@ -27,5 +27,5 @@ yarn-error.log*
 # Python cache
 __pycache__/
 
-data/
+dataset/
 kaggle.json
