@@ -1,17 +1,31 @@
 .glassmorphism-nav {
   position: sticky;
-  top: 0;
+  top: 20px;
   z-index: 1000;
-  background: rgba(30,34,60,0.6);
-  backdrop-filter: blur(14px);
-  border-bottom: 1px solid rgba(180,220,255,0.14);
+
+  /* Transparent frosted-glass background */
+  background: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+
+  /* Rounded edges and subtle border */
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+
+  /* Layout and spacing */
   padding: 0.8rem 2.5rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  box-shadow: 0 6px 32px 0 rgba(0,0,10,0.07);
+  justify-content: center;
+
+  /* Soft shadow and margin */
+  box-shadow: 0 6px 32px 0 rgba(0, 0, 0, 0.1);
+  margin: 0 450px;
+  width: 500px;
 }
-.navbar-links a, .navbar-links .active {
+
+.navbar-links a,
+.navbar-links .active {
   color: #e0eaff;
   margin: 0 0.9rem;
   text-decoration: none;
@@ -19,9 +33,12 @@
   border-bottom: 2px solid transparent;
   transition: border 0.18s;
 }
-.navbar-links .active, .navbar-links a:hover {
+
+.navbar-links .active,
+.navbar-links a:hover {
   border-bottom: 2px solid #54ACBF;
 }
+
 .navbar-logo a {
   color: #A7EBF2;
   font-size: 1.34rem;

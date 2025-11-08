@@ -3,9 +3,9 @@ import "../styles/Footer.css";
 export default function Footer() {
   return (
     <footer className="glass-footer">
-      <span>© {new Date().getFullYear()} DeepFakeShield. Built with ❤️ for AI Security</span>
+      <span>© {new Date().getFullYear()} DeepFakeShield. Built by Tejashree Deore(13), Ketaki Sakhadeo(54), Sanjana Shetty(60).</span>
       <span>
-        <a href="https://github.com/your-repo" rel="noopener noreferrer" target="_blank">GitHub</a>
+        <a href="https://github.com/SanjanaS09/DeepFakeShield" rel="noopener noreferrer" target="_blank">GitHub</a>
       </span>
     </footer>
   );

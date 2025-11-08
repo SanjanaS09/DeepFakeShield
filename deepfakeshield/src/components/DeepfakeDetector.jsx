@@ -126,14 +126,14 @@ const DeepfakeDetector = () => {
   return (
     <div className="deepfake-detector-container">
       <header className="detector-header">
-        <h1>🔍 DeepFake Shield</h1>
+        <h1>DeepFake Shield</h1>
         <p>Advanced AI-Powered Deepfake Detection System</p>
       </header>
 
       <div className="detector-content">
         <div className="upload-panel">
           <div className="upload-card">
-            <h2>📤 Upload Media</h2>
+            <h2>Upload Media</h2>
 
             <div className="media-type-selector">
               {['image', 'video', 'audio'].map(type => (
@@ -143,8 +143,7 @@ const DeepfakeDetector = () => {
                   onClick={() => setMediaType(type)}
                   disabled={processing}
                 >
-                  {type === 'image' ? '🖼️' : type === 'video' ? '🎬' : '🎵'}
-                  {' ' + type.toUpperCase()}
+                  {type.toUpperCase()}
                 </button>
               ))}
             </div>
@@ -172,8 +171,8 @@ const DeepfakeDetector = () => {
 
               {file && (
                 <div className="file-info">
-                  <p>📊 Size: {(file.size / 1024 / 1024).toFixed(2)} MB</p>
-                  <p>📝 Type: {file.type}</p>
+                  <p>Size: {(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                  <p>Type: {file.type}</p>
                 </div>
               )}
 
@@ -182,13 +181,13 @@ const DeepfakeDetector = () => {
                 disabled={!file || processing}
                 className="detect-btn"
               >
-                {processing ? '⏳ Processing...' : '🚀 Detect Deepfake'}
+                {processing ? 'Processing...' : 'Detect Deepfake'}
               </button>
             </form>
 
             {error && (
               <div className="error-message">
-                <span>⚠️ {error}</span>
+                <span>{error}</span>
               </div>
             )}
           </div>

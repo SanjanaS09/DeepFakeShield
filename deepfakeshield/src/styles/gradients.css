@@ -1,6 +1,6 @@
 .main-gradient-bg {
   min-height: 100vh;
-  background: radial-gradient(ellipse 120% 90% at 40% 0%, #233160 69%, #191834 100%) fixed;
+  background: black;
   background-blend-mode: lighten;
 }
 .section-gradient {

@@ -19,9 +19,8 @@ function App() {
       <div className="main-gradient-bg">
         <Navbar />
         <Routes>
-          {/* <Route path="/" element={<Home />} /> */}
-          <Route path="/" element={<DeepfakeDetector />} />
-          <Route path="/upload" element={<Upload />} />
+          <Route path="/" element={<Home />} />
+          <Route path="/upload" element={<DeepfakeDetector />} />
           <Route path="/about" element={<About />} />
           <Route path="/tutorial" element={<Tutorial />} />
           <Route path="/extensions" element={<Extensions />} />
