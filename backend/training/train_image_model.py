@@ -29,9 +29,19 @@ import json
 # Add project root to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
-from data_loaders.image_dataloader import DeepfakeImageDataset, get_image_transforms
-from augmentations.image_augmentations import ImageAugmentationPipeline
-from models.image_models import XceptionModel, EfficientNetModel, ResNetModel, VisionTransformerModel
+# from data_loaders.image_dataloader import DeepfakeImageDataset, get_image_transforms
+#from preprocessing.image_augmentations import ImageAugmentationPipeline
+
+from preprocessing.image_augmentations import ImageAugmentationPipeline
+
+
+from preprocessing.image_dataloader import DeepfakeImageDataset, get_image_transforms
+
+#from augmentations.image_augmentations import ImageAugmentationPipeline
+#from models.image_models import XceptionModel, EfficientNetModel, ResNetModel, VisionTransformerModel
+
+from models.image_detector import XceptionModel, EfficientNetModel, ResNetModel, VisionTransformerModel
+
 from utils.logger import get_logger
 from utils.metrics import MetricsCalculator
 from utils.checkpoint_manager import CheckpointManager
