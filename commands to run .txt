@@ -1,0 +1,16 @@
+.\deepfake_env\Scripts\activate
+
+# Image training
+python training/train_image_model_fixed.py --dataset dataset/image --epochs 10
+
+# Video training (if you have video data)
+python training/train_video_model_fixed.py --dataset dataset/video --epochs 5
+
+# Audio training (if you have audio data)
+python training/train_audio_model_fixed.py --dataset dataset/audio --epochs 10
+
+#test
+python training/evaluate_models.py --model checkpoints/best_image_model.pth --dataset dataset/image/test --device cpu
+
+#Run application
+python app.py

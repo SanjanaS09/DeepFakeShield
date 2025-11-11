@@ -1,0 +1,120 @@
+.tutorial-page {
+  min-height: 100vh;
+  padding: 6rem 2rem;
+  color: #e8f6ff;
+  font-family: "Montserrat", sans-serif;
+  position: relative;
+  overflow-x: hidden;
+}
+
+/* Header Section */
+.tutorial-header {
+  text-align: center;
+  max-width: 850px;
+  margin: 0 auto 4rem;
+}
+
+.tutorial-header h1 {
+  font-size: 2.8rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #5fe3ff, #b88cff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 1rem;
+}
+
+.tutorial-header p {
+  font-size: 1.1rem;
+  color: rgba(220, 235, 255, 0.8);
+  line-height: 1.6;
+}
+
+/* Steps Section */
+.steps-section {
+  position: relative;
+  max-width: 950px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3rem;
+  padding-left: 1.5rem;
+}
+
+.vertical-line {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(to bottom, #5fe3ff, #b88cff);
+  transform: translateX(-50%);
+  opacity: 0.5;
+}
+
+/* Each Step Card */
+.step-card {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 2rem;
+  position: relative;
+  z-index: 1;
+}
+
+.step-card:nth-child(even) {
+  flex-direction: row-reverse;
+}
+
+.step-icon {
+  flex: 0 0 90px;
+  height: 90px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 50%, #5fe3ff, #b88cff);
+  border-radius: 18px;
+  box-shadow: 0 0 20px rgba(120, 150, 255, 0.3);
+  transition: all 0.3s ease;
+}
+
+.step-icon img {
+  width: 75px;
+  height: 75px;
+  filter: drop-shadow(0 0 6px rgba(157, 212, 254));
+}
+
+.step-content {
+  max-width: 550px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 1.5rem 2rem;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition: 0.3s ease;
+}
+
+.step-content h3 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 0.8rem;
+  background: linear-gradient(135deg, #5fe3ff, #b88cff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.step-content p {
+  font-size: 1rem;
+  color: rgba(220, 235, 255, 0.8);
+  line-height: 1.6;
+}
+
+.step-card:hover .step-icon {
+  transform: scale(1.1);
+  box-shadow: 0 0 30px rgba(150, 200, 255, 0.4);
+}
+
+.step-card:hover .step-content {
+  border-color: rgba(120, 200, 255, 0.3);
+  box-shadow: 0 0 30px rgba(100, 150, 255, 0.2);
+}

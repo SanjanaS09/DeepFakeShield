@@ -1,0 +1,288 @@
+/* === GLOBAL CONTAINER === */
+.processing-window {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background: radial-gradient(circle at 40% 30%, #0b0d19, #060611 85%);
+  color: #e8f6ff;
+  font-family: "Montserrat", sans-serif;
+  padding: 4rem 2rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.processing-window::before {
+  content: "";
+  position: absolute;
+  top: -25%;
+  left: -20%;
+  width: 150%;
+  height: 150%;
+  background: radial-gradient(circle at 50% 50%, rgba(64, 201, 255, 0.18), rgba(164, 107, 255, 0.12), transparent 70%);
+  filter: blur(160px);
+  z-index: 0;
+}
+
+/* === HEADER === */
+.processing-header {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.processing-header h3 {
+  font-size: 2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #40c9ff, #a46bff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 0.5rem;
+}
+
+.processing-badge {
+  display: inline-block;
+  background: linear-gradient(135deg, #40c9ff, #a46bff);
+  color: white;
+  border-radius: 30px;
+  padding: 0.4rem 1rem;
+  font-size: 0.9rem;
+  box-shadow: 0 0 15px rgba(120, 150, 255, 0.4);
+  animation: pulseGlow 2.5s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(120, 180, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(180, 130, 255, 0.5);
+  }
+}
+
+/* === PIPELINE VISUALIZATION === */
+.pipeline-stages {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3rem;
+  position: relative;
+  z-index: 2;
+  margin-bottom: 3rem;
+  flex-wrap: wrap;
+}
+
+.pipeline-stage {
+  position: relative;
+  text-align: center;
+  transition: all 0.4s ease;
+}
+
+.stage-number {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.3rem;
+  margin: 0 auto;
+  transition: all 0.4s ease;
+}
+
+.pipeline-stage.completed .stage-number {
+  background: linear-gradient(135deg, #40c9ff, #a46bff);
+  color: white;
+  border: none;
+  box-shadow: 0 0 25px rgba(100, 200, 255, 0.3);
+}
+
+.stage-label {
+  margin-top: 0.6rem;
+  font-size: 1rem;
+  color: rgba(230, 240, 255, 0.85);
+}
+
+/* === CONNECTING LINES BETWEEN STAGES === */
+.pipeline-stages::before {
+  content: "";
+  position: absolute;
+  top: 30px;
+  left: 5%;
+  width: 90%;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(64, 201, 255, 0.6), rgba(164, 107, 255, 0.6));
+  z-index: 1;
+  opacity: 0.3;
+}
+
+/* === PROCESSING DETAILS (STEP LOGS) === */
+.processing-details {
+  width: 90%;
+  max-width: 800px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2rem;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+  z-index: 2;
+  margin-bottom: 3rem;
+  text-align: left;
+}
+
+.processing-details h4 {
+  font-size: 1.3rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #5fe3ff, #b88cff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 1rem;
+}
+
+.processing-steps-list {
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(100, 200, 255, 0.3) transparent;
+}
+
+.processing-steps-list::-webkit-scrollbar {
+  width: 6px;
+}
+.processing-steps-list::-webkit-scrollbar-thumb {
+  background: rgba(100, 200, 255, 0.4);
+  border-radius: 10px;
+}
+
+/* === STEP ITEM === */
+.processing-step {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+  transition: 0.3s ease;
+}
+
+.processing-step:hover {
+  border-color: rgba(100, 200, 255, 0.3);
+  box-shadow: 0 0 20px rgba(120, 160, 255, 0.25);
+}
+
+.step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 500;
+  color: #fff;
+  margin-bottom: 0.4rem;
+}
+
+.step-icon {
+  margin-right: 0.6rem;
+}
+
+.step-details {
+  font-size: 0.95rem;
+  color: rgba(220, 235, 255, 0.85);
+  margin-bottom: 0.3rem;
+}
+
+.step-status {
+  font-size: 0.9rem;
+  color: #61bdaf;
+}
+
+/* === PROGRESS BAR === */
+.processing-progress {
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+.progress-bar {
+  width: 80%;
+  max-width: 600px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 50px;
+  overflow: hidden;
+  backdrop-filter: blur(18px);
+  margin: 0 auto 1rem;
+  position: relative;
+  box-shadow: 0 0 30px rgba(100, 200, 255, 0.15);
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #40c9ff, #a46bff, #61bdaf);
+  border-radius: 50px;
+  transition: width 0.4s ease;
+  animation: progressGlow 3s ease-in-out infinite;
+  box-shadow: 0 0 30px rgba(100, 200, 255, 0.25);
+}
+
+@keyframes progressGlow {
+  0% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(1.4);
+  }
+  100% {
+    filter: brightness(1);
+  }
+}
+
+.progress-text {
+  font-size: 1rem;
+  color: rgba(230, 240, 255, 0.85);
+  letter-spacing: 0.5px;
+}
+
+/* === SCANNING LIGHT === */
+.progress-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(100, 200, 255, 0.5), transparent);
+  animation: scanMotion 2.5s linear infinite;
+}
+
+@keyframes scanMotion {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 768px) {
+  .pipeline-stages {
+    gap: 2rem;
+  }
+
+  .stage-number {
+    width: 50px;
+    height: 50px;
+    font-size: 1.1rem;
+  }
+
+  .processing-details {
+    padding: 1.5rem;
+  }
+}
