@@ -405,22 +405,10 @@ import numpy as np
 from datetime import datetime
 from tqdm import tqdm
 from PIL import Image
-
-# ============================================
-# NOW THESE IMPORTS WILL WORK
-# ============================================
-try:
-    from models.image_detector import ImageDetector
-    from preprocessing.image_preprocessor import ImagePreprocessor
-    from features.visual_features import VisualFeatureExtractor
-    from utils.logger import get_logger
-    from utils.validators import validate_input
-    from utils.face_detection import FaceDetector
-except ImportError as e:
-    print(f"⚠️ Warning: Some imports failed: {e}")
-    print("Make sure models/, preprocessing/, features/, and utils/ exist in backend/")
+import matplotlib.pyplot as plt
 
 logger = logging.getLogger(__name__)
+
 
 # ============================================
 # ADVANCED DATASET
