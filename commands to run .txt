@@ -1,13 +1,13 @@
 .\deepfake_env\Scripts\activate
 
 # Image training
-python training/train_image_model_fixed.py --dataset dataset/image --epochs 10
+python training/train_image_model.py --dataset dataset/image --epochs 35 --architecture xception
 
-# Video training (if you have video data)
-python training/train_video_model_fixed.py --dataset dataset/video --epochs 5
+# Terminal 2: Video
+python training/train_video_model.py --dataset dataset/video --epochs 20
 
-# Audio training (if you have audio data)
-python training/train_audio_model_fixed.py --dataset dataset/audio --epochs 10
+# Terminal 3: Audio
+python training/train_audio_model.py --dataset dataset/audio --epochs 35
 
 #test
 python training/evaluate_models.py --model checkpoints/best_image_model.pth --dataset dataset/image/test --device cpu

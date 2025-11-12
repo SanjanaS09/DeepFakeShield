@@ -1064,6 +1064,40 @@ def scan_directory(directory_path, extensions=None):
 
     return matching_files
 
+# ============================================
+# STANDALONE FUNCTIONS
+# ============================================
+
+def save_uploaded_file(file, file_type='general', upload_folder='uploads/temp'):
+    """Save uploaded file"""
+    from werkzeug.utils import secure_filename
+    import uuid
+    from pathlib import Path
+    
+    upload_dir = Path(upload_folder)
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    filename = secure_filename(file.filename)
+    unique_filename = f"{uuid.uuid4()}_{filename}"
+    filepath = upload_dir / unique_filename
+    
+    file.save(str(filepath))
+    return filepath
+
+
+def cleanup_temp_file(filepath):
+    """Delete temporary file"""
+    from pathlib import Path
+    try:
+        filepath = Path(filepath)
+        if filepath.exists():
+            filepath.unlink()
+            return True
+        return False
+    except Exception as e:
+        print(f"Failed to delete {filepath}: {e}")
+        return False
+
 __all__ = [
     'FileHandler',
     'save_uploaded_file',
