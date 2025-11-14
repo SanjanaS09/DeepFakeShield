@@ -70,28 +70,48 @@ class BaseDetectionModel(nn.Module, ABC):
         """Extract features from input - must be implemented by subclasses"""
         pass
 
-    def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+    # def forward(self, x: torch.Tensor) -> Dict[str, torch.Tensor]:
+    #     """
+    #     Forward pass through the model
+
+    #     Args:
+    #         x: Input tensor
+
+    #     Returns:
+    #         Dictionary containing logits, probabilities, and features
+    #     """
+    #     # Extract features
+    #     features = self.extract_features(x)
+
+    #     # Classification
+    #     logits = self.classifier(features)
+    #     probabilities = torch.softmax(logits, dim=1)
+
+    #     return {
+    #         'logits': logits,
+    #         'probabilities': probabilities,
+    #         'features': features
+    #     }
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Forward pass through the model
-
+        
         Args:
-            x: Input tensor
-
+            x: Input tensor of shape (batch_size, 3, 224, 224)
+        
         Returns:
-            Dictionary containing logits, probabilities, and features
+            Logits tensor of shape (batch_size, num_classes)
         """
         # Extract features
         features = self.extract_features(x)
-
-        # Classification
+        
+        # Classify
         logits = self.classifier(features)
-        probabilities = torch.softmax(logits, dim=1)
+        
+        # ✅ RETURN ONLY LOGITS TENSOR
+        return logits
 
-        return {
-            'logits': logits,
-            'probabilities': probabilities,
-            'features': features
-        }
 
     def predict(self, input_data, return_confidence=True) -> Dict[str, Union[int, float, np.ndarray]]:
         """

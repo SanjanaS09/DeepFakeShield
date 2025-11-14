@@ -406,3 +406,17 @@ class ImageDetector(BaseDetectionModel):
         quality_metrics['resolution'] = img_np.shape[0] * img_np.shape[1]
 
         return quality_metrics
+    
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Forward pass for image detector
+        
+        Args:
+            x: Input tensor
+        
+        Returns:
+            Logits tensor
+        """
+        # Call parent's forward which now returns only logits
+        return super().forward(x)
+
