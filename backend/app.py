@@ -302,17 +302,16 @@ class RealDetectionService:
         logger.info(f"Using device: {self.device}")
         
         # Load models
-        self.image_model = self._load_image_model()
-        self.video_model = self._load_video_model()
-        self.audio_model = self._load_audio_model()
+        self.image_model = self.load_image_model()
+        self.video_model = self.load_video_model()
+        self.audio_model = self.load_audio_model()
         
         logger.info("✓ Detection service initialized with real models")
     
-    def _load_image_model(self):
+    def load_image_model(self):
         """Load image model from checkpoint"""
         try:
-            checkpoint_path = Path('checkpoints/image/best_model.pth')
-            
+            checkpoint_path = Path("checkpoints/image/best_model.pth")
             if not checkpoint_path.exists():
                 logger.warning(f"Image model not found at {checkpoint_path}")
                 return None
@@ -320,36 +319,39 @@ class RealDetectionService:
             logger.info(f"Loading image model from {checkpoint_path}")
             checkpoint = torch.load(checkpoint_path, map_location=self.device)
             
-            # Import model class
+            # Load models
             try:
                 from models.image_detector import ImageDetector
+                
                 model = ImageDetector(backbone='xception', num_classes=2)
                 
                 if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
                     logger.info("Loading checkpoint with model_state_dict")
-                    model.load_state_dict(checkpoint['model_state_dict'])
+                    # ✅ KEY: Add strict=False here!
+                    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
                 else:
                     logger.info("Loading checkpoint directly")
-                    model.load_state_dict(checkpoint)
+                    # ✅ KEY: Add strict=False here!
+                    model.load_state_dict(checkpoint, strict=False)
                 
                 model = model.to(self.device)
                 model.eval()
-                logger.info("✓ Image model loaded successfully")
+                logger.info("✅ Image model loaded successfully")
                 return model
-            
+                
             except Exception as e:
                 logger.error(f"Error loading image model: {e}")
                 return None
-        
+                
         except Exception as e:
             logger.error(f"Failed to load image model: {e}")
             return None
-    
-    def _load_video_model(self):
+
+
+    def load_video_model(self):
         """Load video model from checkpoint"""
         try:
-            checkpoint_path = Path('checkpoints/video/best_model.pth')
-            
+            checkpoint_path = Path("checkpoints/video/best_model.pth")
             if not checkpoint_path.exists():
                 logger.warning(f"Video model not found at {checkpoint_path}")
                 return None
@@ -359,30 +361,34 @@ class RealDetectionService:
             
             try:
                 from models.video_detector import VideoDetector
+                
                 model = VideoDetector(backbone='i3d', num_classes=2)
                 
                 if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-                    model.load_state_dict(checkpoint['model_state_dict'])
+                    # ✅ KEY: Add strict=False here!
+                    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
                 else:
-                    model.load_state_dict(checkpoint)
+                    # ✅ KEY: Add strict=False here!
+                    model.load_state_dict(checkpoint, strict=False)
                 
                 model = model.to(self.device)
                 model.eval()
-                logger.info("✓ Video model loaded")
+                logger.info("✅ Video model loaded successfully")
                 return model
+                
             except Exception as e:
                 logger.error(f"Error loading video model: {e}")
                 return None
-        
+                
         except Exception as e:
             logger.error(f"Failed to load video model: {e}")
             return None
-    
-    def _load_audio_model(self):
+
+
+    def load_audio_model(self):
         """Load audio model from checkpoint"""
         try:
-            checkpoint_path = Path('checkpoints/audio/best_model.pth')
-            
+            checkpoint_path = Path("checkpoints/audio/best_model.pth")
             if not checkpoint_path.exists():
                 logger.warning(f"Audio model not found at {checkpoint_path}")
                 return None
@@ -392,21 +398,25 @@ class RealDetectionService:
             
             try:
                 from models.audio_detector import AudioDetector
+                
                 model = AudioDetector(backbone='ecapa-tdnn', num_classes=2)
                 
                 if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-                    model.load_state_dict(checkpoint['model_state_dict'])
+                    # ✅ KEY: Add strict=False here!
+                    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
                 else:
-                    model.load_state_dict(checkpoint)
+                    # ✅ KEY: Add strict=False here!
+                    model.load_state_dict(checkpoint, strict=False)
                 
                 model = model.to(self.device)
                 model.eval()
-                logger.info("✓ Audio model loaded")
+                logger.info("✅ Audio model loaded successfully")
                 return model
+                
             except Exception as e:
                 logger.error(f"Error loading audio model: {e}")
                 return None
-        
+                
         except Exception as e:
             logger.error(f"Failed to load audio model: {e}")
             return None
@@ -417,8 +427,11 @@ class RealDetectionService:
             logger.info(f"Processing image: {image_path}")
             
             if not self.image_model:
-                logger.warning("Image model not available, returning demo result")
-                return self._demo_result()
+                logger.error("❌ CRITICAL: Image model failed to load!")
+                return {
+                    'error': 'Image model not available',
+                    'status': 'error'
+                }
             
             # Import preprocessing
             from preprocessing.image_preprocessor import ImagePreprocessor

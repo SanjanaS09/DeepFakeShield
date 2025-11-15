@@ -1058,16 +1058,19 @@ logger = logging.getLogger(__name__)
 
 
 class DeepfakeDetectionService:
-    """
-    Main detection service that coordinates all components
-    """
+    """Main detection service that coordinates all components"""
     
     def __init__(self, device='cpu'):
         """Initialize detection service with all models"""
         self.device = device
         logger.info(f"Initializing DeepfakeDetectionService on {device}")
         
-        # Initialize models (lazy loading)
+        # Model paths
+        self.IMAGE_MODEL_PATH = "checkpoints/image/best_model.pth"
+        self.VIDEO_MODEL_PATH = "checkpoints/video/best_model.pth"
+        self.AUDIO_MODEL_PATH = "checkpoints/audio/best_model.pth"
+        
+        # Initialize as None (lazy loading)
         self._image_detector = None
         self._video_detector = None
         self._audio_detector = None
@@ -1087,35 +1090,152 @@ class DeepfakeDetectionService:
     
     @property
     def image_detector(self):
-        """Lazy load image detector"""
+        """Lazy load image detector WITH TRAINED WEIGHTS"""
         if self._image_detector is None:
-            self._image_detector = ImageDetector(
-                backbone='xception',
-                num_classes=2,
-                device=self.device
-            )
+            logger.info("Loading image detector...")
+            
+            if not Path(self.IMAGE_MODEL_PATH).exists():
+                logger.error(f"❌ Image model checkpoint not found: {self.IMAGE_MODEL_PATH}")
+                raise FileNotFoundError(f"Image model not found: {self.IMAGE_MODEL_PATH}")
+            
+            try:
+                # Initialize model architecture
+                self._image_detector = ImageDetector(
+                    backbone='xception',
+                    num_classes=2,
+                    device=self.device,
+                    pretrained=False
+                )
+                
+                # Load trained checkpoint
+                logger.info(f"Loading checkpoint from: {self.IMAGE_MODEL_PATH}")
+                checkpoint = torch.load(self.IMAGE_MODEL_PATH, map_location=self.device)
+                
+                # Load state dict - use strict=False because architectures may differ slightly
+                if 'model_state_dict' in checkpoint:
+                    self._image_detector.load_state_dict(
+                        checkpoint['model_state_dict'], 
+                        strict=False  # ✅ KEY: Allow architecture mismatch
+                    )
+                    logger.info("✅ Loaded from 'model_state_dict'")
+                elif 'state_dict' in checkpoint:
+                    self._image_detector.load_state_dict(
+                        checkpoint['state_dict'], 
+                        strict=False
+                    )
+                    logger.info("✅ Loaded from 'state_dict'")
+                else:
+                    self._image_detector.load_state_dict(checkpoint, strict=False)
+                    logger.info("✅ Loaded directly")
+                
+                # Set to evaluation mode
+                self._image_detector.eval()
+                
+                # Log checkpoint metadata
+                if 'epoch' in checkpoint:
+                    logger.info(f"   Epoch: {checkpoint['epoch']}")
+                if 'val_acc' in checkpoint or 'best_val_acc' in checkpoint:
+                    acc = checkpoint.get('val_acc', checkpoint.get('best_val_acc', 'N/A'))
+                    logger.info(f"   Validation Accuracy: {acc}")
+                
+                logger.info("✅ Image detector loaded successfully!")
+                
+            except Exception as e:
+                logger.error(f"❌ Error loading image model: {e}", exc_info=True)
+                raise
+        
         return self._image_detector
     
     @property
     def video_detector(self):
-        """Lazy load video detector"""
+        """Lazy load video detector WITH TRAINED WEIGHTS"""
         if self._video_detector is None:
-            self._video_detector = VideoDetector(
-                backbone='i3d',
-                num_classes=2,
-                device=self.device
-            )
+            logger.info("Loading video detector...")
+            
+            if not Path(self.VIDEO_MODEL_PATH).exists():
+                logger.warning(f"Video model checkpoint not found: {self.VIDEO_MODEL_PATH}")
+                logger.warning("Using pretrained I3D weights instead")
+                # Fallback to pretrained
+                self._video_detector = VideoDetector(
+                    backbone='i3d',
+                    num_classes=2,
+                    device=self.device
+                )
+            else:
+                try:
+                    self._video_detector = VideoDetector(
+                        backbone='i3d',
+                        num_classes=2,
+                        device=self.device,
+                        pretrained=False
+                    )
+                    
+                    checkpoint = torch.load(self.VIDEO_MODEL_PATH, map_location=self.device)
+                    
+                    if 'model_state_dict' in checkpoint:
+                        self._video_detector.load_state_dict(checkpoint['model_state_dict'])
+                    elif 'state_dict' in checkpoint:
+                        self._video_detector.load_state_dict(checkpoint['state_dict'], strict=False)
+                    else:
+                        self._video_detector.load_state_dict(checkpoint)
+                    
+                    self._video_detector.eval()
+                    logger.info("✅ Video detector loaded successfully!")
+                    
+                except Exception as e:
+                    logger.error(f"Error loading video model: {e}")
+                    # Fallback to pretrained
+                    self._video_detector = VideoDetector(
+                        backbone='i3d',
+                        num_classes=2,
+                        device=self.device
+                    )
+        
         return self._video_detector
     
     @property
     def audio_detector(self):
-        """Lazy load audio detector"""
+        """Lazy load audio detector WITH TRAINED WEIGHTS"""
         if self._audio_detector is None:
-            self._audio_detector = AudioDetector(
-                backbone='ecapa-tdnn',
-                num_classes=2,
-                device=self.device
-            )
+            logger.info("Loading audio detector...")
+            
+            if not Path(self.AUDIO_MODEL_PATH).exists():
+                logger.warning(f"Audio model checkpoint not found: {self.AUDIO_MODEL_PATH}")
+                logger.warning("Using pretrained ECAPA-TDNN weights instead")
+                self._audio_detector = AudioDetector(
+                    backbone='ecapa-tdnn',
+                    num_classes=2,
+                    device=self.device
+                )
+            else:
+                try:
+                    self._audio_detector = AudioDetector(
+                        backbone='ecapa-tdnn',
+                        num_classes=2,
+                        device=self.device,
+                        pretrained=False
+                    )
+                    
+                    checkpoint = torch.load(self.AUDIO_MODEL_PATH, map_location=self.device)
+                    
+                    if 'model_state_dict' in checkpoint:
+                        self._audio_detector.load_state_dict(checkpoint['model_state_dict'])
+                    elif 'state_dict' in checkpoint:
+                        self._audio_detector.load_state_dict(checkpoint['state_dict'], strict=False)
+                    else:
+                        self._audio_detector.load_state_dict(checkpoint)
+                    
+                    self._audio_detector.eval()
+                    logger.info("✅ Audio detector loaded successfully!")
+                    
+                except Exception as e:
+                    logger.error(f"Error loading audio model: {e}")
+                    self._audio_detector = AudioDetector(
+                        backbone='ecapa-tdnn',
+                        num_classes=2,
+                        device=self.device
+                    )
+        
         return self._audio_detector
     
     @property
