@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: flex-start;
   padding: 3rem 2rem;
-  overflow-x: hidden;
+  /* overflow-x: hidden; */
   position: relative;
 }
 
@@ -198,7 +198,6 @@
 /* RESULTS PANEL */
 .results-panel {
   flex: 1 1 500px;
-  display: flex;
   justify-content: center;
   align-items: center;
   min-height: 500px;

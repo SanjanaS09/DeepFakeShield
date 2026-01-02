@@ -9,7 +9,7 @@ from pathlib import Path
 BACKEND_ROOT = Path(__file__).parent
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from models.image_detector import ImageDetector
+from models.image_detector import ImageDeepfakeDetector  
 from PIL import Image
 import torchvision.transforms as transforms
 
@@ -44,8 +44,8 @@ def test_model():
         print(f"Using device: {device}")
         
         # Initialize detector
-        detector = ImageDetector(
-            backbone='xception',
+        detector = ImageDeepfakeDetector(
+
             num_classes=2,
             device=device,
             pretrained=False  # Don't load pretrained, we're loading our trained model

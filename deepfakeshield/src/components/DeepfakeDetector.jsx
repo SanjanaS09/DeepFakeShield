@@ -35,7 +35,7 @@
 //   const addProcessingStep = (step, details = '') => {
 //     // ✅ FIX: Use counter instead of Date.now() to ensure unique keys
 //     stepCounterRef.current += 1;
-    
+
 //     setProcessingSteps(prev => [
 //       ...prev,
 //       {
@@ -85,7 +85,7 @@
 //       }
 
 //       console.log('🚀 Calling API:', API_ENDPOINTS[mediaType]);
-      
+
 //       // ✅ Make API call with CORRECT endpoint
 //       const response = await axios.post(API_ENDPOINTS[mediaType], formData, {
 //         headers: {
@@ -238,48 +238,48 @@ const DeepfakeDetector = () => {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [sessionId, setSessionId] = useState(null);
-  
+
   const socketRef = useRef(null);
   const stepCounterRef = useRef(0);
-  
+
   const BACKEND_URL = 'http://localhost:5000';
   const API_ENDPOINTS = {
     image: `${BACKEND_URL}/api/detection/image`,
     video: `${BACKEND_URL}/api/detection/video`,
     audio: `${BACKEND_URL}/api/detection/audio`
   };
-  
+
   // Initialize WebSocket connection
   useEffect(() => {
     socketRef.current = io(BACKEND_URL, {
       transports: ['websocket', 'polling']
     });
-    
+
     socketRef.current.on('connect', () => {
       console.log('WebSocket connected:', socketRef.current.id);
       setSessionId(socketRef.current.id);
     });
-    
+
     socketRef.current.on('connection_response', (data) => {
       console.log('Connection response:', data);
     });
-    
+
     socketRef.current.on('processing_step', (step) => {
       console.log('Processing step received:', step);
       addProcessingStep(step.name, step.details);
     });
-    
+
     socketRef.current.on('disconnect', () => {
       console.log('WebSocket disconnected');
     });
-    
+
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
       }
     };
   }, []);
-  
+
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
@@ -289,7 +289,7 @@ const DeepfakeDetector = () => {
       setProcessingSteps([]);
     }
   };
-  
+
   const addProcessingStep = (step, details) => {
     stepCounterRef.current += 1;
     setProcessingSteps(prev => [...prev, {
@@ -300,41 +300,41 @@ const DeepfakeDetector = () => {
       status: 'completed'
     }]);
   };
-  
+
   const handleDetect = async (e) => {
     e.preventDefault();
-    
+
     if (!file) {
       setError('Please select a file');
       return;
     }
-    
+
     setProcessing(true);
     setProcessingSteps([]);
     stepCounterRef.current = 0;
     setResult(null);
     setError(null);
-    
+
     try {
       // Emit start processing event
       if (socketRef.current) {
         socketRef.current.emit('start_processing', { filename: file.name });
       }
-      
+
       // Prepare form data
       const formData = new FormData();
       formData.append('file', file);
       if (sessionId) {
         formData.append('session_id', sessionId);
       }
-      
+
       // Add initial step
       addProcessingStep('File Upload', `Uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
-      
+
       // Simulate some initial processing steps
       await new Promise(r => setTimeout(r, 300));
       addProcessingStep('Preprocessing', `Preparing ${mediaType.toUpperCase()} data...`);
-      
+
       // Make API call
       console.log('Calling API:', API_ENDPOINTS[mediaType]);
       const response = await axios.post(API_ENDPOINTS[mediaType], formData, {
@@ -343,22 +343,25 @@ const DeepfakeDetector = () => {
         },
         timeout: 120000  // 2 minutes timeout
       });
-      
+
       console.log('API Response:', response.data);
-      
+
       // Process response
       setResult({
-        isFake: response.data.prediction === 'FAKE',
-        confidence: response.data.confidence,
-        label: response.data.prediction,
-        processingTime: response.data.processing_time,
+        isFake: response.data.is_fake,                     // or prediction === "FAKE"
+        confidence: response.data.confidence,  
+        label: response.data.prediction,            
+        fakeProbability: response.data.fake_probability,
+        realProbability: response.data.real_probability,
+        processingTime: response.data.processing_time,     // match backend key
         framesAnalyzed: response.data.file_info?.frames_analyzed,
         featuresExtracted: response.data.feature_breakdown || response.data.temporal_analysis,
-        filename: file.name
+        filename: file.name,
       });
-      
+
       addProcessingStep('Detection Complete', `Result: ${response.data.prediction}`);
-      
+      console.log('Detection complete. Result set.', 'Result:', result);
+
     } catch (err) {
       console.error('Error:', err);
       const errorMessage = err.response?.data?.error || err.message || 'An error occurred';
@@ -368,7 +371,7 @@ const DeepfakeDetector = () => {
       setProcessing(false);
     }
   };
-  
+
   return (
     <div className="deepfake-detector-container">
       <header className="detector-header">
@@ -382,13 +385,13 @@ const DeepfakeDetector = () => {
           )}
         </div>
       </header>
-      
+
       <div className="detector-content">
         {/* Upload Panel */}
         <div className="upload-panel">
           <div className="upload-card">
             <h2>Upload Media</h2>
-            
+
             {/* Media Type Selector */}
             <div className="media-type-selector">
               {['image', 'video', 'audio'].map(type => (
@@ -402,7 +405,7 @@ const DeepfakeDetector = () => {
                 </button>
               ))}
             </div>
-            
+
             {/* Upload Form */}
             <form onSubmit={handleDetect} className="upload-form">
               <div className="file-input-container">
@@ -412,7 +415,7 @@ const DeepfakeDetector = () => {
                   onChange={handleFileSelect}
                   accept={
                     mediaType === 'image' ? 'image/*' :
-                    mediaType === 'video' ? 'video/*' : 'audio/*'
+                      mediaType === 'video' ? 'video/*' : 'audio/*'
                   }
                   disabled={processing}
                   className="file-input"
@@ -424,14 +427,14 @@ const DeepfakeDetector = () => {
                   </span>
                 </label>
               </div>
-              
+
               {file && (
                 <div className="file-info">
                   <p>Size: {(file.size / 1024 / 1024).toFixed(2)} MB</p>
                   <p>Type: {file.type}</p>
                 </div>
               )}
-              
+
               <button
                 type="submit"
                 disabled={!file || processing}
@@ -440,7 +443,7 @@ const DeepfakeDetector = () => {
                 {processing ? 'Processing...' : 'Detect Deepfake'}
               </button>
             </form>
-            
+
             {error && (
               <div className="error-message">
                 <span>⚠️ {error}</span>
@@ -448,7 +451,7 @@ const DeepfakeDetector = () => {
             )}
           </div>
         </div>
-        
+
         {/* Results Panel */}
         <div className="results-panel">
           {processing && (
@@ -457,7 +460,7 @@ const DeepfakeDetector = () => {
               mediaType={mediaType}
             />
           )}
-          
+
           {result && !processing && (
             <ResultsWindow
               result={result}
@@ -465,7 +468,7 @@ const DeepfakeDetector = () => {
               file={file}
             />
           )}
-          
+
           {!processing && !result && processingSteps.length === 0 && (
             <div className="empty-state">
               <div className="empty-icon">🎯</div>

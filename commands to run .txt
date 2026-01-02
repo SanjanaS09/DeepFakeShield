@@ -10,7 +10,20 @@ python training/train_video_model.py --dataset dataset/video --epochs 20
 python training/train_audio_model.py --dataset dataset/audio --epochs 35
 
 #test
-python training/evaluate_models.py --model checkpoints/best_image_model.pth --dataset dataset/image/test --device cpu
+python test_image_model.py --checkpoint checkpoints/image/best_model.pth --dataset dataset/image/test
+
+python training/evaluate_models.py --model-type image --model checkpoints/image/best_model.pth --dataset dataset/image/test --device cpu --architecture xception
+
+python training/evaluate_models.py --model-type image --model checkpoints/image/best_model.pth --dataset dataset/image/test --device cpu      
 
 #Run application
 python app.py
+
+#Run Backend
+cd backend
+.\deepfake_env\Scripts\activate
+python app.py
+
+#Run frontend
+cd deepfakeshield
+npm start

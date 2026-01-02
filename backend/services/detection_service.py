@@ -1043,7 +1043,7 @@ import torch
 import numpy as np
 from PIL import Image
 
-from models.image_detector import ImageDetector
+from models.image_detector import ImageDeepfakeDetector
 from models.video_detector import VideoDetector
 from models.audio_detector import AudioDetector
 from preprocessing.image_preprocessor import ImagePreprocessor
@@ -1095,56 +1095,23 @@ class DeepfakeDetectionService:
             logger.info("Loading image detector...")
             
             if not Path(self.IMAGE_MODEL_PATH).exists():
-                logger.error(f"❌ Image model checkpoint not found: {self.IMAGE_MODEL_PATH}")
+                logger.error(f"Image model checkpoint not found: {self.IMAGE_MODEL_PATH}")
                 raise FileNotFoundError(f"Image model not found: {self.IMAGE_MODEL_PATH}")
             
             try:
-                # Initialize model architecture
-                self._image_detector = ImageDetector(
-                    backbone='xception',
-                    num_classes=2,
-                    device=self.device,
-                    pretrained=False
+                # Initialize ResNet18 detector with trained weights
+                self._image_detector = ImageDeepfakeDetector(
+                    model_path='checkpoints/image/best_model.pth',
+                    device=self.device
                 )
-                
-                # Load trained checkpoint
-                logger.info(f"Loading checkpoint from: {self.IMAGE_MODEL_PATH}")
-                checkpoint = torch.load(self.IMAGE_MODEL_PATH, map_location=self.device)
-                
-                # Load state dict - use strict=False because architectures may differ slightly
-                if 'model_state_dict' in checkpoint:
-                    self._image_detector.load_state_dict(
-                        checkpoint['model_state_dict'], 
-                        strict=False  # ✅ KEY: Allow architecture mismatch
-                    )
-                    logger.info("✅ Loaded from 'model_state_dict'")
-                elif 'state_dict' in checkpoint:
-                    self._image_detector.load_state_dict(
-                        checkpoint['state_dict'], 
-                        strict=False
-                    )
-                    logger.info("✅ Loaded from 'state_dict'")
-                else:
-                    self._image_detector.load_state_dict(checkpoint, strict=False)
-                    logger.info("✅ Loaded directly")
-                
-                # Set to evaluation mode
-                self._image_detector.eval()
-                
-                # Log checkpoint metadata
-                if 'epoch' in checkpoint:
-                    logger.info(f"   Epoch: {checkpoint['epoch']}")
-                if 'val_acc' in checkpoint or 'best_val_acc' in checkpoint:
-                    acc = checkpoint.get('val_acc', checkpoint.get('best_val_acc', 'N/A'))
-                    logger.info(f"   Validation Accuracy: {acc}")
-                
-                logger.info("✅ Image detector loaded successfully!")
+                logger.info("✓ Image detector loaded successfully!")
                 
             except Exception as e:
-                logger.error(f"❌ Error loading image model: {e}", exc_info=True)
+                logger.error(f"Error loading image model: {e}", exc_info=True)
                 raise
         
         return self._image_detector
+
     
     @property
     def video_detector(self):
@@ -1301,9 +1268,11 @@ class DeepfakeDetectionService:
             
             with torch.no_grad():
                 image_tensor_batch = image_tensor.unsqueeze(0).to(self.device)
-                prediction_logits = self.image_detector(image_tensor_batch)
-                prediction_probs = torch.softmax(prediction_logits, dim=1)
-                confidence, predicted_class = torch.max(prediction_probs, 1)
+                detect_result = self.image_detector.detect(image_path)
+                predicted_class_str = detect_result['prediction']
+                confidence = detect_result['confidence']
+                # Convert class string to index for XAI (if needed)
+                predicted_class_idx = 1 if predicted_class_str == 'FAKE' else 0
             
             # Step 5: Feature Breakdown Analysis
             if emit_callback:
@@ -1318,20 +1287,20 @@ class DeepfakeDetectionService:
             xai_result = self.xai_explainer.explain_image(
                 self.image_detector,
                 image_tensor_batch,
-                target_class=predicted_class.item()
+                target_class=predicted_class_idx
             )
-            
             processing_time = time.time() - start_time
             
             return {
-                'prediction': 'FAKE' if predicted_class.item() == 1 else 'REAL',
-                'confidence': float(confidence.item()),
+                'prediction': predicted_class_str,
+                'confidence': float(confidence),
                 'feature_breakdown': feature_breakdown,
                 'xai_visualization': xai_result,
-                'processing_time': processing_time,
+                'processing_time': time.time() - start_time,
                 'file_size_mb': Path(image_path).stat().st_size / (1024 * 1024)
             }
-            
+
+
         except Exception as e:
             logger.error(f"Error in image detection: {str(e)}", exc_info=True)
             raise

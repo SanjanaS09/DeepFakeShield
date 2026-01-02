@@ -2,6 +2,8 @@
   min-height: 100vh;
   background: black;
   background-blend-mode: lighten;
+      overflow-x: hidden;
+    overflow-y: hidden;
 }
 .section-gradient {
   background: linear-gradient(120deg, #011c40, #023859 60%, #26658c);

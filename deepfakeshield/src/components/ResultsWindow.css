@@ -1,9 +1,9 @@
 .results-window {
   min-height: 100vh;
-  background: radial-gradient(circle at 50% 10%, #0a0b1a, #05060f 90%);
+  /* background: radial-gradient(circle at 50% 10%, #0a0b1a, #05060f 90%); */
   color: #e8f6ff;
   font-family: "Montserrat", sans-serif;
-  padding: 5rem 2rem;
+  padding: 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -19,7 +19,7 @@
   left: -15%;
   width: 150%;
   height: 150%;
-  background: radial-gradient(circle at 50% 50%, rgba(64, 201, 255, 0.15), rgba(164, 107, 255, 0.12), transparent 70%);
+  /* background: radial-gradient(circle at 50% 50%, rgba(64, 201, 255, 0.15), rgba(164, 107, 255, 0.12), transparent 70%); */
   filter: blur(140px);
   z-index: 0;
 }
@@ -72,7 +72,7 @@
 .confidence-gauge {
   width: 100%;
   height: 100%;
-  transform: rotate(-90deg);
+  /* transform: rotate(-90deg); */
 }
 
 .confidence-gauge circle {
@@ -80,11 +80,20 @@
 }
 
 .confidence-text {
-  font-size: 2rem;
+  font-size: 1.3rem;
   font-weight: 700;
   fill: url(#text-gradient);
   -webkit-text-stroke: 1px rgba(255, 255, 255, 0.2);
   animation: pulseBrightness 2s infinite alternate;
+  dominant-baseline: middle;
+}
+
+.results-window.fake .confidence-text {
+  fill: rgb(253, 30, 41);
+}
+
+.results-window.real .confidence-text {
+  fill: #4caf50;
 }
 
 @keyframes pulseBrightness {
@@ -110,7 +119,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: 3rem 2rem;
-  max-width: 800px;
+  max-width: 700px;
   width: 100%;
   box-shadow: 0 10px 45px rgba(0, 0, 0, 0.5);
   position: relative;
@@ -122,8 +131,8 @@
   box-shadow: 0 0 60px rgba(255, 80, 100, 0.25);
 }
 
-.results-window.real .results-main {
-  box-shadow: 0 0 60px rgba(64, 201, 255, 0.25);
+.results-main {
+  box-shadow: 0 0 60px rgb(78 182 96 / 25%);
 }
 
 /* === DETAILS LIST === */
@@ -216,18 +225,97 @@
 }
 
 /* === TRANSITIONS === */
-.results-window.fake {
+/* .results-window.fake {
   background: radial-gradient(circle at 50% 10%, #1a0911, #0b0408 90%);
-}
+} */
 
-.results-window.real {
+/* .results-window.real {
   background: radial-gradient(circle at 50% 10%, #08191e, #040c10 90%);
-}
+} */
 
-.results-window.fake::before {
+/* .results-window.fake::before {
   background: radial-gradient(circle at 50% 50%, rgba(255, 90, 110, 0.25), rgba(255, 40, 80, 0.15), transparent 70%);
+} */
+
+/* .results-window.real::before {
+  background: radial-gradient(circle at 50% 50%, rgba(64, 201, 255, 0.15), rgba(164, 107, 255, 0.12), transparent 70%);
+} */
+
+
+/* === PROBABILITY SECTION === */
+
+.probability-section {
+  margin: var(--space-32) 0;
+  padding: var(--space-24);
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-card-border);
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 600px;
+  box-shadow: var(--shadow-sm);
 }
 
-.results-window.real::before {
-  background: radial-gradient(circle at 50% 50%, rgba(64, 201, 255, 0.15), rgba(164, 107, 255, 0.12), transparent 70%);
+.probability-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-24);
+}
+
+.probability-item {
+  background: rgba(var(--color-gray-400-rgb), 0.04);
+  padding: var(--space-16);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-card-border-inner);
+  transition: all var(--duration-normal) var(--ease-standard);
+}
+
+.probability-item:hover {
+  background: rgba(var(--color-gray-400-rgb), 0.08);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.prob-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-8);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.3px;
+}
+
+.prob-value {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-bold);
+  color: var(--color-text);
+  margin-bottom: var(--space-12);
+  background: linear-gradient(135deg, var(--color-teal-300), var(--color-primary));
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.prob-bar {
+  height: var(--space-8);
+  background: var(--color-secondary);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  position: relative;
+}
+
+.prob-fill {
+  height: 100%;
+  border-radius: var(--radius-sm);
+  transition: width 1s var(--ease-standard);
+  position: relative;
+}
+
+.real-fill {
+  background: linear-gradient(90deg, var(--color-success), var(--color-teal-400));
+  box-shadow: 0 0 var(--space-10) rgba(var(--color-success-rgb), 0.5);
+}
+
+.fake-fill {
+  background: linear-gradient(90deg, var(--color-error), var(--color-red-400));
+  box-shadow: 0 0 var(--space-10) rgba(var(--color-error-rgb), 0.5);
 }
