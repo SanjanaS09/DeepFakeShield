@@ -64,6 +64,4 @@ DeepFakeShield is an AI-powered detection system that analyzes images and videos
 
 - Extend from image-only detection to full multimodal support with dedicated video and audio models and a fusion layer. 
 - Optimize inference for GPU deployment and add containerization (Docker) for easier cloud or on-premise installation in real-world platforms. 
-```
 
-[1](https://ppl-ai-file-upload.s3.amazonaws.com/web/direct-files/attachments/images/143869999/315183ec-1230-4b80-9caa-4cb3c9250bae/image.jpg)
