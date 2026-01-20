@@ -1,187 +1,141 @@
-# Test Image Model Directly
-# Place in: backend/test_image_model.py
-
-import torch
+"""Test image model with checkpoint"""
 import sys
 from pathlib import Path
+import argparse
+import logging
+import torch
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
 
-# Add backend to path
 BACKEND_ROOT = Path(__file__).parent
 sys.path.insert(0, str(BACKEND_ROOT))
 
-from models.image_detector import ImageDeepfakeDetector  
+from models.image_detector import ImageDeepfakeDetector
 from PIL import Image
-import torchvision.transforms as transforms
 
-def test_model():
-    """Test if model loads and works"""
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+def test_model(checkpoint_path, dataset_dir):
+    """Test image model on dataset"""
+    logger.info("="*70)
+    logger.info("TESTING IMAGE MODEL")
+    logger.info("="*70)
     
-    print("=" * 60)
-    print("TESTING IMAGE MODEL")
-    print("=" * 60)
-    
-    # 1. Check if model file exists
-    model_path = "checkpoints/image/best_model.pth"
-    if not Path(model_path).exists():
-        print(f"❌ ERROR: Model file not found at: {model_path}")
-        print(f"   Current directory: {Path.cwd()}")
-        print(f"   Files in checkpoints/image/:")
-        if Path("checkpoints/image").exists():
-            for f in Path("checkpoints/image").iterdir():
-                print(f"     - {f.name}")
-        else:
-            print("     Directory doesn't exist!")
+    # Check checkpoint
+    checkpoint = Path(checkpoint_path)
+    if checkpoint.exists():
+        size_mb = checkpoint.stat().st_size / (1024 * 1024)
+        logger.info(f"✅ Model file found: {checkpoint_path}")
+        logger.info(f"   Size: {size_mb:.2f} MB")
+    else:
+        logger.error(f"❌ Model file not found: {checkpoint_path}")
         return
     
-    print(f"✅ Model file found: {model_path}")
-    print(f"   Size: {Path(model_path).stat().st_size / (1024*1024):.2f} MB")
+    logger.info("\n" + "="*70)
+    logger.info("Loading model...")
     
-    # 2. Load model
-    print("\n" + "=" * 60)
-    print("Loading model...")
+    # Load model (✅ NO num_classes parameter)
     try:
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        print(f"Using device: {device}")
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        logger.info(f"Using device: {device}")
         
-        # Initialize detector
         detector = ImageDeepfakeDetector(
-
-            num_classes=2,
+            model_path=checkpoint_path,
             device=device,
-            pretrained=False  # Don't load pretrained, we're loading our trained model
+            pretrained=False  # Don't load pretrained, use checkpoint weights
         )
+        logger.info("✅ Model loaded successfully!")
         
-        # Load checkpoint
-        checkpoint = torch.load(model_path, map_location=device)
-        
-        # Check what's in the checkpoint
-        print(f"\nCheckpoint keys: {checkpoint.keys()}")
-        
-        if 'model_state_dict' in checkpoint:
-            detector.load_state_dict(checkpoint['model_state_dict'])
-            print("✅ Loaded from 'model_state_dict'")
-        elif 'state_dict' in checkpoint:
-            detector.load_state_dict(checkpoint['state_dict'])
-            print("✅ Loaded from 'state_dict'")
-        else:
-            detector.load_state_dict(checkpoint)
-            print("✅ Loaded directly")
-        
-        detector.eval()
-        print("✅ Model loaded successfully!")
-        
-        # Print checkpoint metadata
-        if 'epoch' in checkpoint:
-            print(f"   Epoch: {checkpoint['epoch']}")
-        if 'val_acc' in checkpoint:
-            print(f"   Val Accuracy: {checkpoint['val_acc']:.2f}%")
-        if 'best_val_acc' in checkpoint:
-            print(f"   Best Val Acc: {checkpoint['best_val_acc']:.2f}%")
-            
     except Exception as e:
-        print(f"❌ ERROR loading model: {e}")
+        logger.error(f"❌ ERROR loading model: {e}")
         import traceback
         traceback.print_exc()
         return
     
-    # 3. Test with dummy image
-    print("\n" + "=" * 60)
-    print("Testing prediction on dummy image...")
-    try:
-        # Create dummy image
-        dummy_image = Image.new('RGB', (224, 224), color='red')
-        
-        # Transform
-        transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                               std=[0.229, 0.224, 0.225])
-        ])
-        
-        img_tensor = transform(dummy_image).unsqueeze(0).to(device)
-        
-        # Predict
-        with torch.no_grad():
-            outputs = detector(img_tensor)
-            probabilities = torch.softmax(outputs, dim=1)
-            prediction = torch.argmax(outputs, dim=1)
-            
-        print(f"✅ Prediction successful!")
-        print(f"   Raw outputs: {outputs.cpu().numpy()}")
-        print(f"   Probabilities: {probabilities.cpu().numpy()}")
-        print(f"   Prediction: {'FAKE' if prediction.item() == 1 else 'REAL'}")
-        print(f"   Confidence: {probabilities.max().item():.4f}")
-        
-    except Exception as e:
-        print(f"❌ ERROR during prediction: {e}")
-        import traceback
-        traceback.print_exc()
+    # Test on dataset
+    logger.info("\n" + "="*70)
+    logger.info("Testing on dataset...")
+    
+    dataset_path = Path(dataset_dir)
+    if not dataset_path.exists():
+        logger.error(f"Dataset not found: {dataset_dir}")
         return
     
-    # 4. Test on actual test images
-    print("\n" + "=" * 60)
-    print("Testing on actual test images...")
+    predictions = []
+    labels = []
+    file_count = 0
     
-    test_dir = Path("dataset/image/test")
-    if not test_dir.exists():
-        print(f"⚠️  Test directory not found: {test_dir}")
-        print("=" * 60)
-        return
-    
-    # Test on REAL images
-    real_dir = test_dir / "REAL"
+    # Load REAL images
+    real_dir = dataset_path / 'REAL'
     if real_dir.exists():
-        real_images = list(real_dir.glob("*.jpg"))[:3]  # Test first 3
-        print(f"\nTesting on {len(real_images)} REAL images:")
-        
-        for img_path in real_images:
-            try:
-                img = Image.open(img_path).convert('RGB')
-                img_tensor = transform(img).unsqueeze(0).to(device)
-                
-                with torch.no_grad():
-                    outputs = detector(img_tensor)
-                    probs = torch.softmax(outputs, dim=1)
-                    pred = torch.argmax(outputs, dim=1)
-                
-                pred_label = "FAKE" if pred.item() == 1 else "REAL"
-                confidence = probs.max().item()
-                
-                correct = "✅" if pred_label == "REAL" else "❌"
-                print(f"  {correct} {img_path.name[:30]}: {pred_label} ({confidence:.2f})")
-                
-            except Exception as e:
-                print(f"  ❌ Error: {e}")
+        for img_path in sorted(real_dir.glob('*')):
+            if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
+                try:
+                    result = detector.detect(str(img_path))
+                    pred = 0 if result['prediction'] == 'REAL' else 1
+                    predictions.append(pred)
+                    labels.append(0)
+                    file_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to process {img_path}: {e}")
     
-    # Test on FAKE images
-    fake_dir = test_dir / "FAKE"
+    # Load FAKE images
+    fake_dir = dataset_path / 'FAKE'
     if fake_dir.exists():
-        fake_images = list(fake_dir.glob("*.jpg"))[:3]  # Test first 3
-        print(f"\nTesting on {len(fake_images)} FAKE images:")
-        
-        for img_path in fake_images:
-            try:
-                img = Image.open(img_path).convert('RGB')
-                img_tensor = transform(img).unsqueeze(0).to(device)
-                
-                with torch.no_grad():
-                    outputs = detector(img_tensor)
-                    probs = torch.softmax(outputs, dim=1)
-                    pred = torch.argmax(outputs, dim=1)
-                
-                pred_label = "FAKE" if pred.item() == 1 else "REAL"
-                confidence = probs.max().item()
-                
-                correct = "✅" if pred_label == "FAKE" else "❌"
-                print(f"  {correct} {img_path.name[:30]}: {pred_label} ({confidence:.2f})")
-                
-            except Exception as e:
-                print(f"  ❌ Error: {e}")
+        for img_path in sorted(fake_dir.glob('*')):
+            if img_path.suffix.lower() in ['.jpg', '.jpeg', '.png']:
+                try:
+                    result = detector.detect(str(img_path))
+                    pred = 0 if result['prediction'] == 'REAL' else 1
+                    predictions.append(pred)
+                    labels.append(1)
+                    file_count += 1
+                except Exception as e:
+                    logger.warning(f"Failed to process {img_path}: {e}")
     
-    print("\n" + "=" * 60)
-    print("TEST COMPLETE!")
-    print("=" * 60)
+    if not predictions:
+        logger.error("No images processed!")
+        return
+    
+    # Calculate metrics
+    logger.info(f"\nProcessed {file_count} images")
+    logger.info("\n" + "="*70)
+    logger.info("RESULTS")
+    logger.info("="*70)
+    
+    accuracy = accuracy_score(labels, predictions)
+    precision = precision_score(labels, predictions, zero_division=0)
+    recall = recall_score(labels, predictions, zero_division=0)
+    f1 = f1_score(labels, predictions, zero_division=0)
+    
+    cm = confusion_matrix(labels, predictions)
+    tn, fp, fn, tp = cm.ravel() if len(cm.shape) > 1 else [cm[0, 0], cm[0, 1], cm[1, 0], cm[1, 1]]
+    
+    logger.info(f"\n📊 OVERALL METRICS:")
+    logger.info(f"  Accuracy:  {accuracy:.4f} ({accuracy*100:.2f}%)")
+    logger.info(f"  Precision: {precision:.4f}")
+    logger.info(f"  Recall:    {recall:.4f}")
+    logger.info(f"  F1-Score:  {f1:.4f}")
+    
+    logger.info(f"\n📈 CONFUSION MATRIX:")
+    logger.info(f"                 Predicted")
+    logger.info(f"                REAL    FAKE")
+    logger.info(f"  Actual REAL    {tn:4d}    {fp:4d}")
+    logger.info(f"  Actual FAKE    {fn:4d}    {tp:4d}")
+    
+    logger.info("\n" + "="*70)
 
-if __name__ == "__main__":
-    test_model()
+def main():
+    parser = argparse.ArgumentParser(description='Test image deepfake model')
+    parser.add_argument('--checkpoint', type=str, required=True, help='Path to model checkpoint')
+    parser.add_argument('--dataset', type=str, required=True, help='Path to test dataset')
+    
+    args = parser.parse_args()
+    
+    test_model(args.checkpoint, args.dataset)
+
+if __name__ == '__main__':
+    main()

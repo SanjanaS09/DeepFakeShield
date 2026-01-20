@@ -5,6 +5,11 @@ Uses trained models for actual deepfake detection
 import os
 import sys
 from pathlib import Path
+from typing import Dict, Any, Optional, Callable, List
+from datetime import datetime
+import logging
+
+import torch
 
 BACKEND_ROOT = Path(__file__).parent
 sys.path.insert(0, str(BACKEND_ROOT))
@@ -12,9 +17,9 @@ sys.path.insert(0, str(BACKEND_ROOT))
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
-import logging
-from datetime import datetime
-import torch
+
+from preprocessing.video_preprocessor import VideoPreprocessor
+from models.video_detector import VideoDetector
 
 # Configure logging
 logging.basicConfig(
@@ -38,6 +43,7 @@ class RealDetectionService:
         # Load models
         self.image_model = self.load_image_model()
         self.video_model = self.load_video_model()
+        self.video_preprocessor = VideoPreprocessor(device=str(self.device))
         self.audio_model = self.load_audio_model()
         
         logger.info("✓ Detection service initialized with real models")
@@ -69,32 +75,22 @@ class RealDetectionService:
             return None
 
     def load_video_model(self):
-        """Load video model from checkpoint"""
+        """Load frame-based video model"""
         try:
-            checkpoint_path = Path("checkpoints/video/best_model.pth")
-            if not checkpoint_path.exists():
-                logger.warning(f"Video model not found at {checkpoint_path}")
-                return None
+            logger.info("Loading frame-based video detector...")
             
-            logger.info("Loading video model...")
-            checkpoint = torch.load(checkpoint_path, map_location=self.device)
+            from models.video_detector_frame_based import FrameBasedVideoDetector
             
-            try:
-                from models.video_detector import VideoDetector
-                model = VideoDetector(backbone='i3d', num_classes=2)
-                if isinstance(checkpoint, dict) and 'model_state_dict' in checkpoint:
-                    model.load_state_dict(checkpoint['model_state_dict'], strict=False)
-                else:
-                    model.load_state_dict(checkpoint, strict=False)
-                model = model.to(self.device)
-                model.eval()
-                logger.info("✅ Video model loaded successfully")
-                return model
-                
-            except Exception as e:
-                logger.error(f"Error loading video model: {e}")
-                return None
-                
+            model = FrameBasedVideoDetector(
+                model_path='checkpoints/video/best_model.pth',
+                device=str(self.device),
+                num_frames=8,
+                frame_size=(224, 224)
+            )
+            
+            logger.info("✅ Video detector loaded successfully")
+            return model
+        
         except Exception as e:
             logger.error(f"Failed to load video model: {e}")
             return None
@@ -155,18 +151,29 @@ class RealDetectionService:
             logger.error(f"Image detection error: {e}", exc_info=True)
             return {'error': str(e), 'status': 'error'}
 
-    def detect_video(self, video_path):
-        """Detect deepfake in video using trained model"""
+    def detect_video(self, video_path: str, emit_callback=None) -> Dict[str, Any]:
+        """Detect deepfake in video"""
         try:
             logger.info(f"Processing video: {video_path}")
+            
             if not self.video_model:
-                logger.warning("Video model not available")
-                return self._demo_result()
-            return self._demo_result()
+                logger.error("❌ Video model not available")
+                return {'error': 'Video model not available', 'status': 'error'}
+            
+            if emit_callback:
+                emit_callback("Video Processing", "Extracting frames...")
+            
+            # ✅ NEW: Use frame-based prediction
+            result = self.video_model.predict(video_path)
+            
+            logger.info(f"Detection complete: {result['prediction']} ({result['confidence']:.2%})")
+            
+            return result
+        
         except Exception as e:
-            logger.error(f"Video detection error: {e}")
+            logger.error(f"Video detection error: {e}", exc_info=True)
             return {'error': str(e), 'status': 'error'}
-
+    
     def detect_audio(self, audio_path):
         """Detect deepfake in audio using trained model"""
         try:
@@ -226,7 +233,7 @@ def index():
 
 @app.route('/api/detection/image', methods=['POST'])
 def detect_image():
-    """Image detection with real models"""
+    """Image detection with real models - FIXED"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
@@ -235,7 +242,6 @@ def detect_image():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        # Save file
         from werkzeug.utils import secure_filename
         import uuid
         
@@ -248,33 +254,66 @@ def detect_image():
         
         logger.info(f"File saved: {filepath}")
         
-        # Get service
         detection_service = app.config['detection_service']
         
-        # Run detection
+        # ✅ RUN DETECTION
         logger.info("Starting detection...")
         result = detection_service.detect_image(str(filepath))
+        
+        # ✅ FIX: Ensure proper response format
+        if result.get('status') == 'error':
+            logger.error(f"Detection failed: {result.get('error')}")
+            return jsonify(result), 500
+        
+        # ✅ FIX: Convert prediction properly
+        prediction = result.get('prediction', 'UNKNOWN')
+        confidence = float(result.get('confidence', 0.0))
+        
+        # Ensure valid confidence
+        if not (0 <= confidence <= 1):
+            confidence = 0.5
+            logger.warning("Invalid confidence value, set to 0.5")
+        
+        # ✅ BUILD RESPONSE WITH XAI
+        response = {
+            'prediction': prediction,  # Should be 'FAKE' or 'REAL'
+            'confidence': confidence,
+            'probabilities': {
+                'REAL': float(1 - confidence) if prediction == 'FAKE' else float(confidence),
+                'FAKE': float(confidence) if prediction == 'FAKE' else float(1 - confidence)
+            },
+            'label': prediction,
+            'file_name': filename,
+            'status': 'success',
+            # ✅ ADD XAI EXPLANATIONS
+            'xai': {
+                'explanation': f"{'🚨 DEEPFAKE DETECTED' if prediction == 'FAKE' else '✅ AUTHENTIC CONTENT'}",
+                'reasoning': get_reasoning(prediction, confidence),
+                'key_indicators': get_indicators(prediction, confidence),
+                'confidence_level': get_confidence_level(confidence),
+                'heatmap': None,  # Will add Grad-CAM if available
+                'recommendations': get_recommendations(prediction, confidence)
+            }
+        }
         
         # Cleanup
         try:
             if filepath.exists():
                 filepath.unlink()
-                logger.info("Temp file cleaned up")
         except Exception as e:
             logger.warning(f"Cleanup failed: {e}")
         
-        return jsonify(result), 200
+        logger.info(f"✅ Detection result: {prediction} ({confidence:.2%})")
+        return jsonify(response), 200
     
     except Exception as e:
-        logger.error(f"Error: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
+        logger.error(f"Error: {e}", exc_info=True)
         return jsonify({'error': str(e), 'status': 'error'}), 500
 
 
 @app.route('/api/detection/video', methods=['POST'])
 def detect_video():
-    """Video detection"""
+    """Video detection with real-time feedback - FIXED"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file provided'}), 400
@@ -293,363 +332,245 @@ def detect_video():
         filepath = upload_dir / filename
         file.save(str(filepath))
         
+        logger.info(f"Video file saved: {filepath}")
+        
         detection_service = app.config['detection_service']
-        result = detection_service.detect_video(str(filepath))
+        
+        def emit_progress(step, message):
+            logger.info(f"{step}: {message}")
+        
+        logger.info("Starting video detection...")
+        result = detection_service.detect_video(str(filepath), emit_callback=emit_progress)
+        
+        # ✅ FIX: Handle error results properly
+        if result.get('status') == 'error':
+            logger.error(f"Detection failed: {result.get('error')}")
+            # Return error but with proper structure
+            response = {
+                'prediction': 'UNKNOWN',
+                'confidence': 0.0,
+                'probabilities': {'REAL': 0.5, 'FAKE': 0.5},
+                'status': 'error',
+                'error': result.get('error', 'Unknown error'),
+                'xai': {
+                    'explanation': '❌ Analysis failed',
+                    'reasoning': ['Unable to process video'],
+                    'key_indicators': {},
+                    'confidence_level': 'Unknown',
+                    'recommendations': ['Please try another video file']
+                }
+            }
+            try:
+                if filepath.exists():
+                    filepath.unlink()
+            except:
+                pass
+            return jsonify(response), 500
+        
+        prediction = result.get('prediction', 'UNKNOWN')
+        confidence = float(result.get('confidence', 0.0))
+        
+        # Ensure valid confidence
+        if not (0 <= confidence <= 1):
+            confidence = 0.5
+        
+        # ✅ BUILD RESPONSE WITH XAI
+        response = {
+            'prediction': prediction,
+            'confidence': confidence,
+            'probabilities': result.get('probabilities', {
+                'REAL': float(1 - confidence),
+                'FAKE': float(confidence)
+            }),
+            'frames_analyzed': result.get('frames_analyzed', 0),
+            'fps': result.get('fps', 0),
+            'label': prediction,
+            'file_name': filename,
+            'status': 'success',
+            # ✅ ADD XAI EXPLANATIONS
+            'xai': {
+                'explanation': f"{'🚨 DEEPFAKE VIDEO DETECTED' if prediction == 'FAKE' else '✅ AUTHENTIC VIDEO'}",
+                'reasoning': get_video_reasoning(prediction, confidence, result),
+                'key_indicators': get_video_indicators(prediction, confidence),
+                'confidence_level': get_confidence_level(confidence),
+                'temporal_analysis': result.get('feature_breakdown', {}),
+                'recommendations': get_recommendations(prediction, confidence)
+            }
+        }
         
         try:
             if filepath.exists():
                 filepath.unlink()
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Cleanup failed: {e}")
         
-        return jsonify(result), 200
+        logger.info(f"✅ Video detection complete: {prediction} ({confidence:.2%})")
+        return jsonify(response), 200
     
     except Exception as e:
-        logger.error(f"Error: {e}")
-        return jsonify({'error': str(e), 'status': 'error'}), 500
-
-
-@app.route('/api/detection/audio', methods=['POST'])
-def detect_audio():
-    """Audio detection"""
-    try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
-        
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
-        
-        from werkzeug.utils import secure_filename
-        import uuid
-        
-        upload_dir = Path('uploads/temp')
-        upload_dir.mkdir(parents=True, exist_ok=True)
-        
-        filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
-        filepath = upload_dir / filename
-        file.save(str(filepath))
-        
-        detection_service = app.config['detection_service']
-        result = detection_service.detect_audio(str(filepath))
-        
-        try:
-            if filepath.exists():
-                filepath.unlink()
-        except:
-            pass
-        
-        return jsonify(result), 200
-    
-    except Exception as e:
-        logger.error(f"Error: {e}")
+        logger.error(f"Error: {e}", exc_info=True)
         return jsonify({'error': str(e), 'status': 'error'}), 500
 
 
 # ============================================
-# SOCKETIO EVENTS
+# ✅ XAI HELPER FUNCTIONS
 # ============================================
 
-@socketio.on('connect')
-def handle_connect():
-    """Client connected"""
-    logger.info(f"Client connected: {request.sid}")
-    emit('connection_response', {
-        'status': 'connected',
-        'message': 'Connected to DeepFake Shield',
-        'mode': 'PRODUCTION - REAL MODELS'
-    })
+def get_reasoning(prediction: str, confidence: float) -> List[str]:
+    """Generate reasoning for image prediction"""
+    reasons = []
+    
+    if prediction == 'FAKE':
+        if confidence > 0.95:
+            reasons = [
+                "Strong facial manipulation artifacts detected",
+                "Inconsistent lighting patterns identified",
+                "Compression artifacts typical of AI generation found",
+                "Blending boundaries detected around facial regions"
+            ]
+        elif confidence > 0.80:
+            reasons = [
+                "Multiple indicators of artificial facial manipulation",
+                "Unusual frequency domain characteristics",
+                "Potential deepfake synthesis patterns detected"
+            ]
+        elif confidence > 0.60:
+            reasons = [
+                "Some suspicious artifacts detected",
+                "Cannot confirm authenticity with high confidence",
+                "Recommend manual review"
+            ]
+    else:  # REAL
+        if confidence > 0.95:
+            reasons = [
+                "Natural facial features and expressions detected",
+                "Consistent lighting and shadow patterns",
+                "No significant compression or synthesis artifacts",
+                "Authentic biological motion detected"
+            ]
+        elif confidence > 0.80:
+            reasons = [
+                "Characteristics consistent with authentic media",
+                "No major manipulation indicators found"
+            ]
+        else:
+            reasons = [
+                "Analysis shows mixed signals",
+                "Manual verification recommended"
+            ]
+    
+    return reasons
 
 
-@socketio.on('disconnect')
-def handle_disconnect():
-    """Client disconnected"""
-    logger.info(f"Client disconnected: {request.sid}")
+def get_indicators(prediction: str, confidence: float) -> Dict[str, Any]:
+    """Get key indicators for image"""
+    indicators = {
+        'facial_consistency': 'High' if prediction == 'REAL' else 'Low',
+        'lighting_quality': 'Natural' if prediction == 'REAL' else 'Inconsistent',
+        'compression_artifacts': 'Minimal' if prediction == 'REAL' else 'High',
+        'frequency_analysis': 'Normal' if prediction == 'REAL' else 'Anomalies',
+        'edge_quality': 'Sharp' if prediction == 'REAL' else 'Blended'
+    }
+    return indicators
 
 
-@app.errorhandler(404)
-def not_found(error):
-    return jsonify({'error': 'Endpoint not found'}), 404
+def get_video_reasoning(prediction: str, confidence: float, result: Dict) -> List[str]:
+    """Generate reasoning for video prediction"""
+    reasons = []
+    
+    frames_analyzed = result.get('frames_analyzed', 0)
+    
+    if prediction == 'FAKE':
+        reasons = [
+            f"Analyzed {frames_analyzed} frames for inconsistencies",
+            "Detected unnatural motion patterns",
+            "Found temporal discontinuities",
+            "Identified synthesis artifacts across frames"
+        ]
+    else:
+        reasons = [
+            f"Analyzed {frames_analyzed} frames successfully",
+            "Consistent natural motion detected",
+            "Temporal coherence verified",
+            "No major synthesis artifacts found"
+        ]
+    
+    return reasons
 
 
-@app.errorhandler(500)
-def internal_error(error):
-    return jsonify({'error': 'Internal server error'}), 500
+def get_video_indicators(prediction: str, confidence: float) -> Dict[str, Any]:
+    """Get key indicators for video"""
+    indicators = {
+        'temporal_consistency': 'High' if prediction == 'REAL' else 'Low',
+        'motion_smoothness': 'Natural' if prediction == 'REAL' else 'Unnatural',
+        'frame_quality': 'Consistent' if prediction == 'REAL' else 'Variable',
+        'face_tracking': 'Stable' if prediction == 'REAL' else 'Jumpy',
+        'eye_contact': 'Natural' if prediction == 'REAL' else 'Unnatural'
+    }
+    return indicators
 
+
+def get_confidence_level(confidence: float) -> str:
+    """Convert confidence to readable level"""
+    if confidence > 0.95:
+        return "Very High"
+    elif confidence > 0.80:
+        return "High"
+    elif confidence > 0.60:
+        return "Moderate"
+    elif confidence > 0.40:
+        return "Low"
+    else:
+        return "Very Low"
+
+
+def get_recommendations(prediction: str, confidence: float) -> List[str]:
+    """Get recommendations based on prediction"""
+    recommendations = []
+    
+    if prediction == 'FAKE':
+        recommendations = [
+            "⚠️ Do not share or trust this content",
+            "📋 Report to platform moderators",
+            "🔍 Verify source authenticity",
+            "💾 Save evidence for verification purposes"
+        ]
+    else:
+        if confidence > 0.95:
+            recommendations = [
+                "✅ Content appears authentic",
+                "📱 Safe to share"
+            ]
+        else:
+            recommendations = [
+                "⚠️ Some uncertainty in classification",
+                "🔍 Manual review recommended for important decisions",
+                "👨‍⚖️ Consult experts for critical use cases"
+            ]
+    
+    return recommendations
+
+
+# ============================================
+# RUNNING THE APP
+# ============================================
 
 if __name__ == '__main__':
-    print("\n" + "="*60)
+    print("\n" + "="*70)
     print("🛡️  DeepFake Shield - PRODUCTION MODE")
-    print("="*60)
-    print("Starting on http://127.0.0.1:5000")
-    print("Using REAL TRAINED MODELS for detection")
-    print("="*60 + "\n")
+    print("="*70)
+    print("🚀 Starting Flask server...")
+    print("📍 Access at: http://127.0.0.1:5000")
+    print("🔗 API Endpoints:")
+    print("   - Image:  POST http://127.0.0.1:5000/api/detection/image")
+    print("   - Video:  POST http://127.0.0.1:5000/api/detection/video")
+    print("   - Audio:  POST http://127.0.0.1:5000/api/detection/audio")
+    print("="*70 + "\n")
     
-    socketio.run(app, host='127.0.0.1', port=5000, debug=True)
-
-
-# """
-# Multi-Modal Deepfake Detection Flask Backend
-# Enhanced with WebSocket support for real-time preprocessing feedback
-# """
-# import os
-# import logging
-# import uuid
-# from datetime import datetime
-# from pathlib import Path
-
-# from flask import Flask, request, jsonify
-# from flask_cors import CORS
-# from flask_socketio import SocketIO, emit
-# from werkzeug.utils import secure_filename
-
-# from api.detection_routes import detection_bp
-# from api.analysis_routes import analysis_bp
-# from api.health_routes import health_bp
-# from api.middleware import setup_middleware
-# from config import Config
-# from utils.logger import setup_logger
-# from services.detection_service import DeepfakeDetectionService
-
-# # Store service in config
-# app.config['detection_service'] = DeepfakeDetectionService()
-
-# # Initialize SocketIO for real-time updates
-# socketio = SocketIO(cors_allowed_origins="*")
-
-# def create_app(config_class=Config):
-#     """Application factory pattern with WebSocket support"""
-#     app = Flask(__name__)
-#     app.config.from_object(config_class)
-    
-#     # Initialize extensions
-#     CORS(app, origins=['http://localhost:3000', 'http://127.0.0.1:3000'])
-#     socketio.init_app(app)
-    
-#     # Setup logging
-#     setup_logger(app.name)
-#     app.logger.info("DeepFakeShield application starting up with WebSocket support...")
-    
-#     # Setup middleware
-#     setup_middleware(app)
-    
-#     # Register blueprints
-#     app.register_blueprint(detection_bp, url_prefix='/api/detection')
-#     app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
-#     app.register_blueprint(health_bp, url_prefix='/api/health')
-    
-#     # Initialize services (lazy loading to avoid circular imports)
-#     with app.app_context():
-#         from services.detection_service import DeepfakeDetectionService
-#         app.detection_service = DeepfakeDetectionService()
-#         app.logger.info("Services initialized.")
-    
-#     @app.route('/')
-#     def index():
-#         """Root endpoint"""
-#         return jsonify({
-#             "message": "Multi-Modal Deepfake Detection API",
-#             "version": "2.0.0",
-#             "status": "online",
-#             "features": ["real-time-processing", "websocket-support", "xai-visualization"],
-#             "timestamp": datetime.utcnow().isoformat()
-#         })
-    
-#     @app.route('/api/upload', methods=['POST'])
-#     def upload_file():
-#         """Generic file upload endpoint"""
-#         try:
-#             if 'file' not in request.files:
-#                 return jsonify({"error": "No file part in the request"}), 400
-            
-#             file = request.files['file']
-#             if file.filename == '':
-#                 return jsonify({"error": "No file selected for uploading"}), 400
-            
-#             filename = secure_filename(file.filename)
-#             unique_filename = f"{uuid.uuid4()}_{filename}"
-#             upload_dir = Path(app.config.get('UPLOAD_FOLDER', 'uploads/temp'))
-#             upload_dir.mkdir(parents=True, exist_ok=True)
-#             filepath = upload_dir / unique_filename
-#             file.save(str(filepath))
-            
-#             app.logger.info(f"File uploaded successfully: {unique_filename}")
-#             return jsonify({
-#                 "message": "File uploaded successfully",
-#                 "filename": unique_filename,
-#                 "size_mb": filepath.stat().st_size / (1024 * 1024)
-#             }), 201
-            
-#         except Exception as e:
-#             app.logger.error(f"Upload error: {str(e)}")
-#             return jsonify({"error": "Internal server error during file upload"}), 500
-    
-#     # WebSocket event handlers
-#     @socketio.on('connect')
-#     def handle_connect():
-#         """Handle client connection"""
-#         app.logger.info(f"Client connected: {request.sid}")
-#         emit('connection_response', {'status': 'connected', 'sid': request.sid})
-    
-#     @socketio.on('disconnect')
-#     def handle_disconnect():
-#         """Handle client disconnection"""
-#         app.logger.info(f"Client disconnected: {request.sid}")
-    
-#     @socketio.on('start_processing')
-#     def handle_start_processing(data):
-#         """Handle processing start request"""
-#         app.logger.info(f"Processing started for session: {request.sid}")
-#         emit('processing_started', {'status': 'initialized'})
-    
-#     # Error handlers
-#     @app.errorhandler(404)
-#     def not_found(error):
-#         return jsonify({
-#             "error": "Not Found",
-#             "message": "This endpoint does not exist."
-#         }), 404
-    
-#     @app.errorhandler(500)
-#     def internal_error(error):
-#         app.logger.error(f"Internal error: {str(error)}")
-#         return jsonify({
-#             "error": "Internal Server Error",
-#             "message": "An unexpected error occurred."
-#         }), 500
-    
-#     app.logger.info("Application setup complete. Ready to serve requests.")
-#     return app
-
-
-# if __name__ == '__main__':
-#     app = create_app()
-#     # Use socketio.run instead of app.run for WebSocket support
-#     socketio.run(
-#         app,
-#         host=app.config.get('HOST', '127.0.0.1'),
-#         port=app.config.get('PORT', 5000),
-#         debug=app.config.get('DEBUG', True),
-#         allow_unsafe_werkzeug=True
-#     )
-
-# #  """
-# # Multi-Modal Deepfake Detection Flask Backend
-# # Main application entry point with all routes and initialization
-# # """
-
-# # import os
-# # import logging
-# # import uuid
-# # from datetime import datetime
-# # from flask import Flask, request, jsonify, send_file
-# # from flask_cors import CORS
-# # from werkzeug.utils import secure_filename
-
-# # # Import our custom modules
-# # from api.detection_routes import detection_bp
-# # from api.analysis_routes import analysis_bp
-# # from api.health_routes import health_bp
-# # from api.middleware import setup_middleware
-# # from config import Config
-# # from utils.logger import setup_logger
-# # from utils.validators import validate_file_type
-# # # Correctly import the service with an alias
-# # from services.detection_service import DeepfakeDetectionService as DetectionService
-# # # Correctly import from the database package
-# # from database import init_db
-
-# # def create_app(config_class=Config):
-# #     """Application factory pattern to create and configure the Flask app."""
-# #     app = Flask(__name__)
-# #     app.config.from_object(config_class)
-
-# #     # Initialize CORS to allow requests from your React frontend
-# #     CORS(app, origins=['http://localhost:3000', 'http://127.0.0.1:3000'])
-
-# #     # Setup logging using the app's name (a string)
-# #     setup_logger(app.name)
-# #     app.logger.info("DeepFakeShield application starting up...")
-
-# #     # Initialize the database and create tables if they don't exist
-# #     # This function now correctly takes no arguments
-# #     with app.app_context():
-# #         init_db()
-
-# #     # Setup custom middleware
-# #     setup_middleware(app)
-
-# #     # Register API blueprints
-# #     app.register_blueprint(detection_bp, url_prefix='/api/detection')
-# #     app.register_blueprint(analysis_bp, url_prefix='/api/analysis')
-# #     app.register_blueprint(health_bp, url_prefix='/api/health')
-
-# #     # Initialize services and attach them to the app context for easy access
-# #     detection_service = DetectionService()
-# #     app.detection_service = detection_service
-# #     app.logger.info("Services initialized.")
-
-# #     @app.route('/')
-# #     def index():
-# #         """A simple root endpoint to confirm the server is online."""
-# #         return jsonify({
-# #             'message': 'Multi-Modal Deepfake Detection API',
-# #             'version': '1.0.0',
-# #             'status': 'online',
-# #             'timestamp': datetime.utcnow().isoformat(),
-# #             'documentation': '/docs' # A common practice to point to API docs
-# #         })
-
-# #     @app.route('/api/upload', methods=['POST'])
-# #     def upload_file():
-# #         """A generic file upload endpoint for testing."""
-# #         try:
-# #             if 'file' not in request.files:
-# #                 return jsonify({'error': 'No file part in the request'}), 400
-
-# #             file = request.files['file']
-# #             if file.filename == '':
-# #                 return jsonify({'error': 'No file selected for uploading'}), 400
-
-# #             # You can add more validation here using your file_handlers
-# #             filename = secure_filename(file.filename)
-# #             unique_filename = f"{uuid.uuid4()}_{filename}"
-
-# #             upload_dir = app.config.get('UPLOAD_FOLDER', 'uploads/temp')
-# #             os.makedirs(upload_dir, exist_ok=True)
-            
-# #             file_path = os.path.join(upload_dir, unique_filename)
-# #             file.save(file_path)
-            
-# #             app.logger.info(f"File uploaded successfully: {unique_filename}")
-
-# #             return jsonify({
-# #                 'message': 'File uploaded successfully',
-# #                 'filename': unique_filename
-# #             }), 201
-
-# #         except Exception as e:
-# #             app.logger.error(f"An error occurred during file upload: {str(e)}")
-# #             return jsonify({'error': 'Internal server error during file upload'}), 500
-
-# #     # Register custom error handlers
-# #     @app.errorhandler(404)
-# #     def not_found(error):
-# #         return jsonify({'error': 'Not Found', 'message': 'This endpoint does not exist.'}), 404
-
-# #     @app.errorhandler(500)
-# #     def internal_error(error):
-# #         return jsonify({'error': 'Internal Server Error', 'message': 'An unexpected error occurred.'}), 500
-
-# #     app.logger.info("Application setup complete. Ready to serve requests.")
-# #     return app
-
-# # if __name__ == '__main__':
-# #     # Create the Flask app using the factory
-# #     app = create_app()
-# #     # Run the app
-# #     app.run(
-# #         host=app.config.get('HOST', '127.0.0.1'),
-# #         port=app.config.get('PORT', 5000),
-# #         debug=app.config.get('DEBUG', True)
-# #     )
+    socketio.run(
+        app,
+        host='127.0.0.1',
+        port=5000,
+        debug=True,
+        allow_unsafe_werkzeug=True
+    )

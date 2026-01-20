@@ -1,339 +1,10 @@
-# #!/usr/bin/env python3
-# """
-# FIXED VIDEO MODEL TRAINING SCRIPT  
-# Place in: backend/training/train_video_model_fixed.py
-
-# Properly integrates with your project structure.
-# """
-
-# import os
-# import sys
-# from pathlib import Path
-
-# # FIX: Add backend root to path
-# BACKEND_ROOT = Path(__file__).parent.parent
-# sys.path.insert(0, str(BACKEND_ROOT))
-
-# import argparse
-# import logging
-# import torch
-# import torch.nn as nn
-# import torch.optim as optim
-# from torch.utils.data import DataLoader, Dataset
-# import cv2
-# import numpy as np
-# from tqdm import tqdm
-
-# logger = logging.getLogger(__name__)
-
-# # ============================================
-# # VIDEO DATASET
-# # ============================================
-# class DeepfakeVideoDataset(Dataset):
-#     """Dataset for video-based deepfake detection"""
-    
-#     def __init__(self, root_dir, split='train', num_frames=16):
-#         self.root_dir = Path(root_dir)
-#         self.split = split
-#         self.num_frames = num_frames
-        
-#         self.videos = []
-#         self.labels = []
-        
-#         # Load REAL videos
-#         real_dir = self.root_dir / split / 'REAL'
-#         if real_dir.exists():
-#             for vid_path in sorted(real_dir.glob('*')):
-#                 if vid_path.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']:
-#                     self.videos.append(vid_path)
-#                     self.labels.append(0)  # REAL
-        
-#         # Load FAKE videos
-#         fake_dir = self.root_dir / split / 'FAKE'
-#         if fake_dir.exists():
-#             for vid_path in sorted(fake_dir.glob('*')):
-#                 if vid_path.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']:
-#                     self.videos.append(vid_path)
-#                     self.labels.append(1)  # FAKE
-        
-#         logger.info(f"Loaded {len(self.videos)} videos from {split} split")
-    
-#     def __len__(self):
-#         return len(self.videos)
-    
-#     def _extract_frames(self, video_path):
-#         """Extract evenly spaced frames from video"""
-#         try:
-#             cap = cv2.VideoCapture(str(video_path))
-#             total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            
-#             if total_frames == 0:
-#                 return None
-            
-#             frame_indices = np.linspace(0, total_frames - 1, self.num_frames, dtype=int)
-#             frames = []
-            
-#             for idx in frame_indices:
-#                 cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
-#                 ret, frame = cap.read()
-                
-#                 if ret:
-#                     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-#                     frame = cv2.resize(frame, (224, 224))
-#                     frames.append(frame)
-            
-#             cap.release()
-            
-#             if len(frames) == self.num_frames:
-#                 return np.array(frames)
-#         except Exception as e:
-#             logger.warning(f"Error processing {video_path}: {e}")
-        
-#         return None
-    
-#     def __getitem__(self, idx):
-#         video_path = self.videos[idx]
-#         label = self.labels[idx]
-        
-#         frames = self._extract_frames(video_path)
-        
-#         if frames is None:
-#             frames = np.random.randint(0, 255, (self.num_frames, 224, 224, 3), dtype=np.uint8)
-        
-#         # Convert to tensor
-#         frames = torch.from_numpy(frames).float() / 255.0
-#         frames = frames.permute(0, 3, 1, 2)  # (T, H, W, C) -> (T, C, H, W)
-        
-#         return frames, label
-
-# # ============================================
-# # VIDEO MODEL (3D CNN)
-# # ============================================
-# class Simple3DCNN(nn.Module):
-#     """Simple 3D CNN for video classification"""
-    
-#     def __init__(self, num_classes=2):
-#         super().__init__()
-        
-#         self.conv1 = nn.Conv3d(3, 64, kernel_size=(3, 7, 7), stride=(1, 2, 2), padding=(1, 3, 3))
-#         self.bn1 = nn.BatchNorm3d(64)
-#         self.relu = nn.ReLU(inplace=True)
-#         self.maxpool = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
-        
-#         self.conv2 = nn.Conv3d(64, 128, kernel_size=(3, 3, 3), stride=1, padding=1)
-#         self.bn2 = nn.BatchNorm3d(128)
-#         self.maxpool2 = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
-        
-#         self.avgpool = nn.AdaptiveAvgPool3d((1, 1, 1))
-#         self.fc = nn.Linear(128, num_classes)
-    
-#     def forward(self, x):
-#         # x: (B, T, C, H, W) -> (B, C, T, H, W)
-#         x = x.permute(0, 2, 1, 3, 4)
-        
-#         x = self.conv1(x)
-#         x = self.bn1(x)
-#         x = self.relu(x)
-#         x = self.maxpool(x)
-        
-#         x = self.conv2(x)
-#         x = self.bn2(x)
-#         x = self.relu(x)
-#         x = self.maxpool2(x)
-        
-#         x = self.avgpool(x)
-#         x = x.view(x.size(0), -1)
-#         x = self.fc(x)
-        
-#         return x
-
-# # ============================================
-# # TRAINER
-# # ============================================
-# class VideoTrainer:
-#     """Trainer for video deepfake detection"""
-    
-#     def __init__(self, dataset_root, checkpoint_dir='checkpoints'):
-#         self.dataset_root = Path(dataset_root)
-#         self.checkpoint_dir = Path(checkpoint_dir)
-#         self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        
-#         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-#         logger.info(f"Using device: {self.device}")
-        
-#         # Model
-#         self.model = Simple3DCNN(num_classes=2)
-#         self.model = self.model.to(self.device)
-        
-#         # Data loaders
-#         self._setup_data_loaders()
-        
-#         # Loss, optimizer
-#         self.criterion = nn.CrossEntropyLoss()
-#         self.optimizer = optim.Adam(self.model.parameters(), lr=0.001)
-#         self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=3, gamma=0.1)
-    
-#     def _setup_data_loaders(self):
-#         """Setup data loaders"""
-#         logger.info(f"Loading from {self.dataset_root}")
-        
-#         train_dataset = DeepfakeVideoDataset(
-#             self.dataset_root,
-#             split='train',
-#             num_frames=16
-#         )
-        
-#         val_dataset = DeepfakeVideoDataset(
-#             self.dataset_root,
-#             split='validation',
-#             num_frames=16
-#         )
-        
-#         if len(train_dataset) == 0 or len(val_dataset) == 0:
-#             logger.error(f"No videos found in {self.dataset_root}")
-#             raise FileNotFoundError(f"Datasets not found")
-        
-#         self.train_loader = DataLoader(
-#             train_dataset,
-#             batch_size=4,  # Smaller for videos
-#             shuffle=True,
-#             num_workers=0
-#         )
-        
-#         self.val_loader = DataLoader(
-#             val_dataset,
-#             batch_size=4,
-#             shuffle=False,
-#             num_workers=0
-#         )
-        
-#         logger.info(f"Train: {len(train_dataset)} | Val: {len(val_dataset)}")
-    
-#     def train_epoch(self, epoch):
-#         """Train one epoch"""
-#         self.model.train()
-#         total_loss = 0
-#         correct = 0
-#         total = 0
-        
-#         pbar = tqdm(self.train_loader, desc=f"Epoch {epoch} Train")
-        
-#         for frames, labels in pbar:
-#             frames = frames.to(self.device)
-#             labels = labels.to(self.device)
-            
-#             outputs = self.model(frames)
-#             loss = self.criterion(outputs, labels)
-            
-#             self.optimizer.zero_grad()
-#             loss.backward()
-#             self.optimizer.step()
-            
-#             total_loss += loss.item()
-#             _, predicted = outputs.max(1)
-#             correct += predicted.eq(labels).sum().item()
-#             total += labels.size(0)
-            
-#             pbar.set_postfix({
-#                 'loss': f'{loss.item():.4f}',
-#                 'acc': f'{100.*correct/total:.2f}%'
-#             })
-        
-#         return total_loss / len(self.train_loader), 100. * correct / total
-    
-#     def validate(self, epoch):
-#         """Validate"""
-#         self.model.eval()
-#         total_loss = 0
-#         correct = 0
-#         total = 0
-        
-#         pbar = tqdm(self.val_loader, desc=f"Epoch {epoch} Val")
-        
-#         with torch.no_grad():
-#             for frames, labels in pbar:
-#                 frames = frames.to(self.device)
-#                 labels = labels.to(self.device)
-                
-#                 outputs = self.model(frames)
-#                 loss = self.criterion(outputs, labels)
-                
-#                 total_loss += loss.item()
-#                 _, predicted = outputs.max(1)
-#                 correct += predicted.eq(labels).sum().item()
-#                 total += labels.size(0)
-                
-#                 pbar.set_postfix({
-#                     'loss': f'{loss.item():.4f}',
-#                     'acc': f'{100.*correct/total:.2f}%'
-#                 })
-        
-#         return total_loss / len(self.val_loader), 100. * correct / total
-    
-#     def train(self, num_epochs=5):
-#         """Main training loop"""
-#         logger.info(f"Starting video training for {num_epochs} epochs...")
-        
-#         best_val_loss = float('inf')
-        
-#         for epoch in range(1, num_epochs + 1):
-#             logger.info(f"\n{'='*60}")
-#             logger.info(f"Epoch {epoch}/{num_epochs}")
-#             logger.info(f"{'='*60}")
-            
-#             train_loss, train_acc = self.train_epoch(epoch)
-#             logger.info(f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.2f}%")
-            
-#             val_loss, val_acc = self.validate(epoch)
-#             logger.info(f"Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.2f}%")
-            
-#             if val_loss < best_val_loss:
-#                 best_val_loss = val_loss
-#                 checkpoint_path = self.checkpoint_dir / 'best_video_model.pth'
-#                 torch.save(self.model.state_dict(), checkpoint_path)
-#                 logger.info(f"✓ Saved best model")
-            
-#             self.scheduler.step()
-        
-#         final_path = self.checkpoint_dir / 'final_video_model.pth'
-#         torch.save(self.model.state_dict(), final_path)
-#         logger.info(f"\n✓ Training complete! Model saved to {final_path}")
-
-# # ============================================
-# # MAIN
-# # ============================================
-# def main():
-#     parser = argparse.ArgumentParser(description='Train video deepfake detection model')
-#     parser.add_argument('--dataset', type=str, default='dataset/video', help='Dataset path')
-#     parser.add_argument('--epochs', type=int, default=5, help='Number of epochs')
-#     parser.add_argument('--checkpoint-dir', type=str, default='checkpoints', help='Checkpoint dir')
-    
-#     args = parser.parse_args()
-    
-#     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-    
-#     logger.info("="*60)
-#     logger.info("VIDEO DEEPFAKE DETECTION TRAINING")
-#     logger.info("="*60)
-    
-#     trainer = VideoTrainer(
-#         dataset_root=args.dataset,
-#         checkpoint_dir=args.checkpoint_dir
-#     )
-    
-#     trainer.train(num_epochs=args.epochs)
-
-# if __name__ == '__main__':
-#     main()
-
-
 """
-FIXED ADVANCED VIDEO MODEL TRAINING
-Place in: backend/training/train_video_model.py
+✅ OPTIMIZED VIDEO MODEL TRAINING - FAST & EFFICIENT
+Pre-extracts features once, then trains on cached data
+Target: 85%+ accuracy, trains in MINUTES
 """
-import os
-import sys
 from pathlib import Path
+import sys
 
 BACKEND_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(BACKEND_ROOT))
@@ -343,392 +14,347 @@ import logging
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, TensorDataset
 import cv2
 import numpy as np
 from tqdm import tqdm
-import matplotlib.pyplot as plt
-from torch.utils.tensorboard import SummaryWriter
+import random
+import pickle
+import os
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-
 # ============================================
-# VIDEO DATASET
+# ✅ FEATURE EXTRACTION (CACHED)
 # ============================================
-class AdvancedDeepfakeVideoDataset(Dataset):
-    """Advanced dataset for video-based deepfake detection"""
+class FastFeatureExtractor:
+    """Extract features ONCE and cache them"""
     
-    def __init__(self, root_dir, split='train', num_frames=16):
-        self.root_dir = Path(root_dir)
-        self.split = split
+    def __init__(self, num_frames=8):
         self.num_frames = num_frames
-        self.videos = []
-        self.labels = []
-        
-        # Load REAL videos
-        real_dir = self.root_dir / split / 'REAL'
-        if real_dir.exists():
-            for vid_path in sorted(real_dir.glob('*')):
-                if vid_path.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv', '.webm']:
-                    self.videos.append(vid_path)
-                    self.labels.append(0)
-        
-        # Load FAKE videos
-        fake_dir = self.root_dir / split / 'FAKE'
-        if fake_dir.exists():
-            for vid_path in sorted(fake_dir.glob('*')):
-                if vid_path.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv', '.webm']:
-                    self.videos.append(vid_path)
-                    self.labels.append(1)
-        
-        logger.info(f"Loaded {len(self.videos)} videos from {split} split "
-                   f"({sum(1 for l in self.labels if l==0)} REAL, "
-                   f"{sum(1 for l in self.labels if l==1)} FAKE)")
     
-    def __len__(self):
-        return len(self.videos)
-    
-    def _extract_frames(self, video_path):
-        """Extract evenly spaced frames from video"""
+    def extract_optical_flow(self, video_path):
+        """Extract optical flow magnitude - FAST"""
         try:
             cap = cv2.VideoCapture(str(video_path))
-            total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             
-            if total_frames == 0:
+            if total < 2:
                 return None
             
-            frame_indices = np.linspace(0, total_frames - 1, self.num_frames, dtype=int)
-            frames = []
+            frame_indices = np.linspace(0, total-1, self.num_frames, dtype=int)
+            
+            prev_gray = None
+            flow_magnitudes = []
             
             for idx in frame_indices:
                 cap.set(cv2.CAP_PROP_POS_FRAMES, idx)
                 ret, frame = cap.read()
-                if ret:
-                    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    frame = cv2.resize(frame, (224, 224))
-                    frames.append(frame)
+                
+                if not ret:
+                    continue
+                
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                
+                if prev_gray is not None:
+                    # Fast optical flow
+                    flow = cv2.calcOpticalFlowFarneback(
+                        prev_gray, gray, None, 
+                        0.5, 3, 15, 3, 5, 1.2, 0
+                    )
+                    mag, _ = cv2.cartToPolar(flow[..., 0], flow[..., 1])
+                    flow_magnitudes.append(np.mean(mag) / 50.0)
+                else:
+                    flow_magnitudes.append(0.0)
+                
+                prev_gray = gray
             
             cap.release()
             
-            if len(frames) == self.num_frames:
-                return np.array(frames)
-        except Exception as e:
-            logger.warning(f"Error processing {video_path}: {e}")
+            while len(flow_magnitudes) < self.num_frames:
+                flow_magnitudes.append(0.0)
+            
+            return np.array(flow_magnitudes[:self.num_frames], dtype=np.float32)
         
-        return None
+        except Exception as e:
+            logger.warning(f"Feature extraction failed: {e}")
+            return None
+    
+    def extract_batch(self, video_paths):
+        """Extract features from multiple videos"""
+        features_list = []
+        
+        for video_path in tqdm(video_paths, desc="Extracting features"):
+            features = self.extract_optical_flow(video_path)
+            
+            if features is None:
+                features = np.random.randn(self.num_frames)
+            
+            features_list.append(features)
+        
+        return np.array(features_list, dtype=np.float32)
+
+
+# ============================================
+# ✅ CACHED DATASET
+# ============================================
+class CachedVideoDataset(Dataset):
+    """Uses pre-extracted features"""
+    
+    def __init__(self, features, labels):
+        self.features = torch.from_numpy(features).float()
+        self.labels = torch.from_numpy(np.array(labels)).long()
+    
+    def __len__(self):
+        return len(self.features)
     
     def __getitem__(self, idx):
-        video_path = self.videos[idx]
-        label = self.labels[idx]
-        
-        frames = self._extract_frames(video_path)
-        
-        if frames is None:
-            frames = np.random.randint(0, 255, (self.num_frames, 224, 224, 3), dtype=np.uint8)
-        
-        frames = torch.from_numpy(frames).float() / 255.0
-        frames = frames.permute(0, 3, 1, 2)  # T, H, W, C -> T, C, H, W
-        
-        return frames, label
+        return self.features[idx].unsqueeze(1), self.labels[idx]  # [T] -> [T, 1]
 
 
 # ============================================
-# 3D CNN MODEL
+# ✅ SIMPLE LSTM MODEL
 # ============================================
-class Simple3DCNN(nn.Module):
-    """Simple 3D CNN for video classification"""
+class SimpleLSTM(nn.Module):
+    """Fast LSTM for optical flow sequences"""
     
-    def __init__(self, num_classes=2):
+    def __init__(self, input_dim=1, hidden_dim=64, num_layers=2, dropout=0.3):
         super().__init__()
         
-        self.conv1 = nn.Conv3d(3, 64, kernel_size=(3, 7, 7), stride=(1, 2, 2), padding=(1, 3, 3))
-        self.bn1 = nn.BatchNorm3d(64)
-        self.relu = nn.ReLU(inplace=True)
-        self.maxpool = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
+        self.lstm = nn.LSTM(
+            input_size=input_dim,
+            hidden_size=hidden_dim,
+            num_layers=num_layers,
+            batch_first=True,
+            dropout=dropout if num_layers > 1 else 0,
+            bidirectional=True
+        )
         
-        self.conv2 = nn.Conv3d(64, 128, kernel_size=(3, 3, 3), stride=1, padding=1)
-        self.bn2 = nn.BatchNorm3d(128)
-        self.maxpool2 = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
+        self.attention = nn.Sequential(
+            nn.Linear(hidden_dim * 2, 32),
+            nn.ReLU(),
+            nn.Linear(32, 1),
+            nn.Softmax(dim=1)
+        )
         
-        self.conv3 = nn.Conv3d(128, 256, kernel_size=(3, 3, 3), stride=1, padding=1)
-        self.bn3 = nn.BatchNorm3d(256)
-        self.maxpool3 = nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1))
-        
-        self.avgpool = nn.AdaptiveAvgPool3d((1, 1, 1))
-        self.fc = nn.Linear(256, num_classes)
+        self.fc = nn.Sequential(
+            nn.Linear(hidden_dim * 2, 64),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(32, 2)
+        )
     
     def forward(self, x):
-        # x: (batch, T, C, H, W) -> (batch, C, T, H, W)
-        x = x.permute(0, 2, 1, 3, 4)
+        # x: [B, T, 1]
+        lstm_out, _ = self.lstm(x)  # [B, T, 128]
         
-        x = self.conv1(x)
-        x = self.bn1(x)
-        x = self.relu(x)
-        x = self.maxpool(x)
+        # Attention
+        attn_w = self.attention(lstm_out)  # [B, T, 1]
+        weighted = torch.sum(lstm_out * attn_w, dim=1)  # [B, 128]
         
-        x = self.conv2(x)
-        x = self.bn2(x)
-        x = self.relu(x)
-        x = self.maxpool2(x)
-        
-        x = self.conv3(x)
-        x = self.bn3(x)
-        x = self.relu(x)
-        x = self.maxpool3(x)
-        
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-        
-        return x
+        # FC
+        logits = self.fc(weighted)  # [B, 2]
+        return logits
 
 
 # ============================================
-# TRAINER CLASS - ✅ FIXED
+# ✅ TRAINER WITH CACHING
 # ============================================
-class VideoTrainer:
-    """Trainer for video deepfake detection"""
-    
-    def __init__(self, dataset_root, epochs=15, batch_size=4, learning_rate=0.001,
-                 weight_decay=0.0001, num_workers=4, checkpoint_dir='checkpoints/video',
-                 experiment_name='video_deepfake', num_frames=16):
-        """✅ FIXED: Accept all parameters"""
-        self.dataset_root = Path(dataset_root)
-        self.epochs = epochs
-        self.batch_size = batch_size
-        self.learning_rate = learning_rate
-        self.weight_decay = weight_decay
-        self.num_workers = num_workers
-        self.checkpoint_dir = Path(checkpoint_dir)
-        self.experiment_name = experiment_name
-        self.num_frames = num_frames
-        
-        self.checkpoint_dir.mkdir(parents=True, exist_ok=True)
-        
+class OptimizedTrainer:
+    def __init__(self, dataset_root, epochs=30, batch_size=32, lr=0.001):
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        logger.info(f"Using device: {self.device}")
+        logger.info(f"Device: {self.device}")
         
-        self.writer = SummaryWriter(log_dir=f"runs/{experiment_name}")
+        self.dataset_root = Path(dataset_root)
+        self.cache_dir = Path('feature_cache')
+        self.cache_dir.mkdir(exist_ok=True)
         
-        self.model = Simple3DCNN(num_classes=2).to(self.device)
-        self.train_loader, self.val_loader = self.setup_dataloaders()
+        # Load or extract features
+        logger.info("Loading training data...")
+        self.train_features, self.train_labels = self._load_or_extract('train')
+        self.val_features, self.val_labels = self._load_or_extract('validation')
         
-        self.criterion = nn.CrossEntropyLoss()
-        self.optimizer = optim.Adam(self.model.parameters(), lr=learning_rate)
-        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=3, gamma=0.1)
+        # Create datasets
+        self.train_ds = CachedVideoDataset(self.train_features, self.train_labels)
+        self.val_ds = CachedVideoDataset(self.val_features, self.val_labels)
         
-        self.best_val_acc = 0.0
-        self.train_losses = []
-        self.val_losses = []
-        self.train_accs = []
-        self.val_accs = []
+        self.train_loader = DataLoader(self.train_ds, batch_size=batch_size, shuffle=True, num_workers=0)
+        self.val_loader = DataLoader(self.val_ds, batch_size=batch_size, shuffle=False, num_workers=0)
+        
+        # Model
+        self.model = SimpleLSTM(input_dim=1, hidden_dim=64, num_layers=2).to(self.device)
+        
+        # Loss with class weights
+        real_count = sum(1 for l in self.train_labels if l == 0)
+        fake_count = sum(1 for l in self.train_labels if l == 1)
+        
+        weight_real = fake_count / (real_count + fake_count)
+        weight_fake = real_count / (real_count + fake_count)
+        
+        logger.info(f"Class weights - REAL: {weight_real:.3f}, FAKE: {weight_fake:.3f}")
+        
+        self.criterion = nn.CrossEntropyLoss(
+            weight=torch.tensor([weight_real, weight_fake]).to(self.device)
+        )
+        
+        self.optimizer = optim.Adam(self.model.parameters(), lr=lr)
+        self.scheduler = optim.lr_scheduler.StepLR(self.optimizer, step_size=5, gamma=0.5)
+        
+        self.best_acc = 0
+        self.epochs = epochs
+        
+        Path('checkpoints/video').mkdir(parents=True, exist_ok=True)
     
-    def setup_dataloaders(self):
-        """Setup data loaders"""
-        logger.info(f"Loading videos from {self.dataset_root}")
+    def _load_or_extract(self, split):
+        """Load cached features or extract them"""
+        cache_file = self.cache_dir / f'{split}_features.pkl'
         
-        train_dataset = AdvancedDeepfakeVideoDataset(
-            self.dataset_root,
-            split='train',
-            num_frames=self.num_frames
-        )
+        if cache_file.exists():
+            logger.info(f"Loading cached features from {cache_file}")
+            with open(cache_file, 'rb') as f:
+                data = pickle.load(f)
+            return data['features'], data['labels']
         
-        val_dataset = AdvancedDeepfakeVideoDataset(
-            self.dataset_root,
-            split='validation',
-            num_frames=self.num_frames
-        )
+        # Extract features
+        logger.info(f"Extracting features for {split}...")
+        videos = []
+        labels = []
         
-        if len(train_dataset) == 0 or len(val_dataset) == 0:
-            raise ValueError(f"No videos found in {self.dataset_root}")
+        real_dir = self.dataset_root / split / 'REAL'
+        if real_dir.exists():
+            for vid in sorted(real_dir.glob('*')):
+                if vid.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']:
+                    videos.append(vid)
+                    labels.append(0)
         
-        train_loader = DataLoader(
-            train_dataset,
-            batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=self.num_workers,
-            pin_memory=True
-        )
+        fake_dir = self.dataset_root / split / 'FAKE'
+        if fake_dir.exists():
+            for vid in sorted(fake_dir.glob('*')):
+                if vid.suffix.lower() in ['.mp4', '.avi', '.mov', '.mkv']:
+                    videos.append(vid)
+                    labels.append(1)
         
-        val_loader = DataLoader(
-            val_dataset,
-            batch_size=self.batch_size,
-            shuffle=False,
-            num_workers=self.num_workers,
-            pin_memory=True
-        )
+        # Shuffle
+        combined = list(zip(videos, labels))
+        random.shuffle(combined)
+        videos, labels = zip(*combined) if combined else ([], [])
+        videos = list(videos)
+        labels = list(labels)
         
-        logger.info(f"Train: {len(train_dataset)} | Val: {len(val_dataset)}")
-        return train_loader, val_loader
+        logger.info(f"Extracting {len(videos)} videos...")
+        extractor = FastFeatureExtractor(num_frames=8)
+        features = extractor.extract_batch(videos)
+        
+        # Cache
+        with open(cache_file, 'wb') as f:
+            pickle.dump({'features': features, 'labels': labels}, f)
+        
+        logger.info(f"Cached to {cache_file}")
+        return features, labels
     
     def train_epoch(self, epoch):
-        """Train one epoch"""
         self.model.train()
         total_loss = 0
         correct = 0
         total = 0
         
-        pbar = tqdm(self.train_loader, desc=f"Epoch {epoch} [Train]")
-        for frames, labels in pbar:
-            frames = frames.to(self.device)
+        pbar = tqdm(self.train_loader, desc=f"Epoch {epoch} [TRAIN]")
+        
+        for features, labels in pbar:
+            features = features.to(self.device)
             labels = labels.to(self.device)
             
-            outputs = self.model(frames)
-            loss = self.criterion(outputs, labels)
+            logits = self.model(features)
+            loss = self.criterion(logits, labels)
             
             self.optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
             self.optimizer.step()
             
             total_loss += loss.item()
-            _, predicted = outputs.max(1)
-            correct += predicted.eq(labels).sum().item()
+            _, pred = logits.max(1)
+            correct += (pred == labels).sum().item()
             total += labels.size(0)
             
-            pbar.set_postfix({
-                'loss': f"{loss.item():.4f}",
-                'acc': f"{100.*correct/total:.2f}%"
-            })
-        
-        return total_loss / len(self.train_loader), 100. * correct / total
+            acc = 100.0 * correct / total
+            pbar.set_postfix({'loss': f'{loss.item():.4f}', 'acc': f'{acc:.1f}%'})
+
+        return total_loss / len(self.train_loader), 100.0 * correct / total
     
     def validate(self, epoch):
-        """Validate"""
         self.model.eval()
         total_loss = 0
         correct = 0
         total = 0
         
-        pbar = tqdm(self.val_loader, desc=f"Epoch {epoch} [Val]")
         with torch.no_grad():
-            for frames, labels in pbar:
-                frames = frames.to(self.device)
+            for features, labels in tqdm(self.val_loader, desc=f"Epoch {epoch} [VAL]"):
+                features = features.to(self.device)
                 labels = labels.to(self.device)
                 
-                outputs = self.model(frames)
-                loss = self.criterion(outputs, labels)
+                logits = self.model(features)
+                loss = self.criterion(logits, labels)
                 
                 total_loss += loss.item()
-                _, predicted = outputs.max(1)
-                correct += predicted.eq(labels).sum().item()
+                _, pred = logits.max(1)
+                correct += (pred == labels).sum().item()
                 total += labels.size(0)
-                
-                pbar.set_postfix({
-                    'loss': f"{loss.item():.4f}",
-                    'acc': f"{100.*correct/total:.2f}%"
-                })
         
-        return total_loss / len(self.val_loader), 100. * correct / total
+        return total_loss / len(self.val_loader), 100.0 * correct / total
     
-    def save_checkpoint(self, epoch, is_best=False):
-        """Save checkpoint"""
-        checkpoint = {
+    def save_checkpoint(self, epoch, acc, is_best=False):
+        ckpt = {
             'epoch': epoch,
             'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-            'best_val_acc': self.best_val_acc
+            'best_acc': self.best_acc
         }
         
-        torch.save(checkpoint, self.checkpoint_dir / 'latest_checkpoint.pth')
-        
+        torch.save(ckpt, 'checkpoints/video/latest.pth')
         if is_best:
-            torch.save(checkpoint, self.checkpoint_dir / 'best_model.pth')
-            logger.info(f"✓ Saved best model with val_acc={self.best_val_acc:.2f}%")
-    
-    def plot_training_curves(self):
-        """Plot training curves"""
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4))
-        
-        ax1.plot(self.train_losses, label='Train Loss')
-        ax1.plot(self.val_losses, label='Val Loss')
-        ax1.set_xlabel('Epoch')
-        ax1.set_ylabel('Loss')
-        ax1.set_title('Training and Validation Loss')
-        ax1.legend()
-        ax1.grid(True)
-        
-        ax2.plot(self.train_accs, label='Train Acc')
-        ax2.plot(self.val_accs, label='Val Acc')
-        ax2.set_xlabel('Epoch')
-        ax2.set_ylabel('Accuracy (%)')
-        ax2.set_title('Training and Validation Accuracy')
-        ax2.legend()
-        ax2.grid(True)
-        
-        plt.tight_layout()
-        plt.savefig(self.checkpoint_dir / 'training_curves.png', dpi=150)
-        plt.close()
+            torch.save(ckpt, 'checkpoints/video/best_model.pth')
+            logger.info(f"✅ Best model: {acc:.2f}%")
     
     def train(self):
-        """Main training loop"""
-        logger.info(f"Starting training for {self.epochs} epochs...")
+        logger.info("\n" + "="*70)
+        logger.info("🎬 OPTIMIZED VIDEO MODEL TRAINING")
+        logger.info("="*70)
         
         for epoch in range(1, self.epochs + 1):
-            logger.info(f"\nEpoch {epoch}/{self.epochs}")
-            logger.info("-"*60)
-            
             train_loss, train_acc = self.train_epoch(epoch)
-            logger.info(f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.2f}%")
-            
             val_loss, val_acc = self.validate(epoch)
-            logger.info(f"Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.2f}%")
             
-            self.writer.add_scalar('Train/Loss', train_loss, epoch)
-            self.writer.add_scalar('Train/Accuracy', train_acc, epoch)
-            self.writer.add_scalar('Val/Loss', val_loss, epoch)
-            self.writer.add_scalar('Val/Accuracy', val_acc, epoch)
+            logger.info(f"E{epoch}: Train={train_acc:.2f}% | Val={val_acc:.2f}%")
             
-            self.train_losses.append(train_loss)
-            self.val_losses.append(val_loss)
-            self.train_accs.append(train_acc)
-            self.val_accs.append(val_acc)
-            
-            is_best = val_acc > self.best_val_acc
+            is_best = val_acc > self.best_acc
             if is_best:
-                self.best_val_acc = val_acc
-            self.save_checkpoint(epoch, is_best)
+                self.best_acc = val_acc
+                logger.info(f"🎯 New best: {self.best_acc:.2f}%")
             
+            self.save_checkpoint(epoch, val_acc, is_best)
             self.scheduler.step()
         
-        logger.info("\n" + "="*60)
-        logger.info("TRAINING COMPLETE!")
-        logger.info(f"Best Validation Accuracy: {self.best_val_acc:.2f}%")
-        logger.info("="*60)
-        
-        self.plot_training_curves()
-        self.writer.close()
+        logger.info(f"\n✅ Training complete! Best: {self.best_acc:.2f}%\n")
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Train advanced video deepfake detection model')
-    parser.add_argument('--dataset', type=str, default='dataset/video', help='Dataset root')
-    parser.add_argument('--epochs', type=int, default=15, help='Number of epochs')
-    parser.add_argument('--batch-size', type=int, default=4, help='Batch size')
-    parser.add_argument('--learning-rate', type=float, default=0.001, help='Learning rate')
-    parser.add_argument('--checkpoint-dir', type=str, default='checkpoints/video', help='Checkpoint dir')
-    parser.add_argument('--experiment-name', type=str, default='video_deepfake', help='Experiment name')
-    parser.add_argument('--num-frames', type=int, default=16, help='Number of frames to extract')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dataset', default='dataset/video')
+    parser.add_argument('--epochs', type=int, default=30)
+    parser.add_argument('--batch-size', type=int, default=32)
+    parser.add_argument('--learning-rate', type=float, default=0.001)
     
     args = parser.parse_args()
     
-    logging.basicConfig(level=logging.INFO,
-                       format='%(asctime)s - %(levelname)s - %(message)s')
-    
-    logger.info("="*60)
-    logger.info("VIDEO DEEPFAKE DETECTION TRAINING")
-    logger.info(f"Dataset: {args.dataset}")
-    logger.info(f"Epochs: {args.epochs}")
-    logger.info("="*60)
-    
-    trainer = VideoTrainer(
+    trainer = OptimizedTrainer(
         dataset_root=args.dataset,
         epochs=args.epochs,
         batch_size=args.batch_size,
-        learning_rate=args.learning_rate,
-        checkpoint_dir=args.checkpoint_dir,
-        experiment_name=args.experiment_name,
-        num_frames=args.num_frames
+        lr=args.learning_rate
     )
     
     trainer.train()

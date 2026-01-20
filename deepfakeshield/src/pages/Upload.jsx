@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import FileUpload from "../components/FileUpload"; // drag/drop or select
-import AnalysisResult from "../components/AnalysisResult";
+import AnalysisResult from "../components/AnalysisResults";
+import ResultWindow from "../components/ResultsWindow"
 import Loader from "../components/Loader";
 import "../styles/Upload.css";
 

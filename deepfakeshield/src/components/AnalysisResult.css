@@ -1,0 +1,353 @@
+.analysis-result {
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 12px;
+  padding: 24px;
+  color: #fff;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.analysis-result.result-fake {
+  border: 3px solid #ff4757;
+  background: linear-gradient(135deg, #2d1a1a 0%, #3e2121 100%);
+}
+
+.analysis-result.result-real {
+  border: 3px solid #26de81;
+  background: linear-gradient(135deg, #1a2d1a 0%, #213e21 100%);
+}
+
+/* ============ RESULT HEADER ============ */
+.result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  gap: 20px;
+}
+
+.result-status {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex: 1;
+}
+
+.status-icon {
+  font-size: 48px;
+  animation: pulse 2s infinite;
+}
+
+.status-info h2 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.status-info .confidence-badge {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+  color: #aaa;
+}
+
+.status-info .confidence-badge strong {
+  color: #fff;
+  font-size: 16px;
+}
+
+/* ============ CONFIDENCE CIRCLE ============ */
+.confidence-circle {
+  position: relative;
+  width: 140px;
+  height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confidence-circle svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.confidence-circle .bg-circle {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.1);
+  stroke-width: 4;
+}
+
+.confidence-circle .progress-circle {
+  fill: none;
+  stroke-width: 4;
+  stroke-linecap: round;
+  transition: stroke-dasharray 0.5s ease;
+}
+
+.result-fake .progress-circle {
+  stroke: #ff4757;
+}
+
+.result-real .progress-circle {
+  stroke: #26de81;
+}
+
+.circle-text {
+  position: absolute;
+  text-align: center;
+}
+
+.circle-text .percentage {
+  display: block;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.circle-text .label {
+  display: block;
+  font-size: 12px;
+  color: #aaa;
+  margin-top: 4px;
+}
+
+/* ============ PROBABILITY SECTION ============ */
+.probability-section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.probability-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.probability-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.prob-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.prob-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+}
+
+.prob-value {
+  font-weight: 700;
+  color: #fff;
+}
+
+.prob-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.prob-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+
+.prob-fill.real {
+  background: linear-gradient(90deg, #26de81, #20c997);
+}
+
+.prob-fill.fake {
+  background: linear-gradient(90deg, #ff4757, #ff6348);
+}
+
+/* ============ XAI SECTION ============ */
+.xai-section {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.xai-section h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.xai-item {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.xai-item:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.xai-item h4 {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.explanation {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #ddd;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  border-left: 3px solid #ffc107;
+}
+
+.reasoning-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+}
+
+.reasoning-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #ddd;
+}
+
+.reasoning-list .bullet {
+  color: #26de81;
+  font-weight: bold;
+}
+
+.indicators-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 10px;
+}
+
+.indicator-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  text-align: center;
+}
+
+.indicator-name {
+  font-size: 12px;
+  color: #aaa;
+  text-transform: capitalize;
+  margin-bottom: 6px;
+}
+
+.indicator-value {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 3px;
+}
+
+.indicator-value.good {
+  background: rgba(38, 222, 129, 0.2);
+  color: #26de81;
+}
+
+.indicator-value.bad {
+  background: rgba(255, 71, 87, 0.2);
+  color: #ff4757;
+}
+
+.recommendations-list {
+  margin: 0;
+  padding-left: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.recommendations-list li {
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.confidence-level {
+  margin: 0;
+  font-size: 13px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* ============ DEBUG INFO ============ */
+.debug-info {
+  margin-top: 20px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.debug-info summary {
+  font-size: 12px;
+  color: #aaa;
+  font-weight: 600;
+  padding: 8px;
+}
+
+.debug-info pre {
+  margin-top: 10px;
+  padding: 10px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 4px;
+  font-size: 11px;
+  overflow-x: auto;
+  color: #26de81;
+  max-height: 300px;
+}
+
+/* ============ LOADING STATE ============ */
+.analysis-container.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #26de81;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
