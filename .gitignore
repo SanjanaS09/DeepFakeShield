@@ -31,5 +31,6 @@ runs/
 checkpoints/
 kaggle.json
 
-
-dataset/
+train/
+test/
+validation/REAL/
