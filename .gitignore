@@ -32,3 +32,4 @@ checkpoints/
 kaggle.json
 
 train/
+validation/
