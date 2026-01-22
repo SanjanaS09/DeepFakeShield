@@ -564,7 +564,7 @@ def detect_video():
             cleanup_temp_file(temp_file)
 
 
-@detection_bp.route('/audio', methods=['POST'])
+@detection_bp.route('/api/detection/audio', methods=['POST'])
 def detect_audio():
     """
     Audio deepfake detection endpoint with real-time preprocessing feedback
