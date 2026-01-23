@@ -411,7 +411,7 @@ def detect_video():
         logger.error(f"Error: {e}", exc_info=True)
         return jsonify({'error': str(e), 'status': 'error'}), 500
 
-@app.route('/api/detection/audio', methods=['POST'])
+@app.route('/audio', methods=['POST'])
 def detect_audio():
     try:
         if 'file' not in request.files:
