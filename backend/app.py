@@ -20,6 +20,9 @@ from flask_socketio import SocketIO, emit
 
 from preprocessing.video_preprocessor import VideoPreprocessor
 from models.video_detector import VideoDetector
+from api.detection_routes import detection_bp
+#app.register_blueprint(detection_bp)
+
 
 # Configure logging
 logging.basicConfig(
@@ -201,6 +204,7 @@ class RealDetectionService:
 def create_app():
     """Create Flask app with real detection service"""
     app = Flask(__name__)
+    app.register_blueprint(detection_bp)
     app.config['SECRET_KEY'] = 'deepfake-shield-secret'
     
     CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -210,10 +214,13 @@ def create_app():
     app.config['detection_service'] = RealDetectionService()
     
     logger.info("Flask app created with REAL detection service")
+    
     return app, socketio
 
 
 app, socketio = create_app()
+if __name__ == "__main__":
+    app.run(debug=True)
 
 
 # ============================================

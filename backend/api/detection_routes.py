@@ -408,7 +408,7 @@ from utils.file_handlers import save_uploaded_file, cleanup_temp_file
 
 logger = logging.getLogger(__name__)
 
-detection_bp = Blueprint('detection', __name__)
+detection_bp = Blueprint('detection', __name__,url_prefix='/api/detection')
 
 
 def emit_processing_step(step_name, details, session_id=None):
