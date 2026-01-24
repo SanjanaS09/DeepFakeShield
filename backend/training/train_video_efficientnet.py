@@ -12,7 +12,7 @@ sys.path.insert(0, str(BACKEND_ROOT))
 import argparse
 import logging
 import torch
-import torch.nn as nn
+# import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, Dataset
 import cv2
