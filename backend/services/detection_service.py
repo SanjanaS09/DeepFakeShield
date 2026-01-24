@@ -1045,7 +1045,7 @@ from PIL import Image
 
 from models.image_detector import ImageDeepfakeDetector
 from models.video_detector import VideoDetector
-from models.audio_detector import AudioDetector
+# from models.audio_detector import AudioDetector
 from preprocessing.image_preprocessor import ImagePreprocessor
 from preprocessing.video_preprocessor import VideoPreprocessor
 from preprocessing.audio_preprocessor import AudioPreprocessor
@@ -1053,6 +1053,8 @@ from features.visual_features import VisualFeatureExtractor
 from features.temporal_features import TemporalFeatureExtractor
 from features.audio_features import AudioFeatureExtractor
 from models.xai_explainer import XAIExplainer
+from models.audio_detection.inference import predict_audio
+
 
 logger = logging.getLogger(__name__)
 
@@ -1385,7 +1387,70 @@ class DeepfakeDetectionService:
         except Exception as e:
             logger.error(f"Error in video detection: {str(e)}", exc_info=True)
             raise
+
+
     
+    # def detect_audio(
+    #     self,
+    #     audio_path: str,
+    #     session_id: Optional[str] = None,
+    #     emit_callback: Optional[Callable] = None
+    # ) -> Dict[str, Any]:
+    #      """Detect deepfake in audio with real-time feedback"""
+    #     try:
+    #         start_time = time.time()
+            
+    #         # Step 1: Load Audio
+    #         if emit_callback:
+    #             emit_callback('Audio Loading', 'Loading audio at 16kHz sample rate', session_id)
+            
+    #         # Step 2: Preprocessing
+    #         if emit_callback:
+    #             emit_callback('Audio Preprocessing', 'Resampling and normalizing audio', session_id)
+            
+    #         preprocessed = self.audio_preprocessor.preprocess_single(audio_path)
+    #         audio_tensor = preprocessed['processed_audio']
+            
+    #         # Step 3: Spectral Analysis
+    #         if emit_callback:
+    #             emit_callback('Spectral Analysis', 'Computing MFCC coefficients', session_id)
+            
+    #         # Step 4: Audio Feature Extraction
+    #         if emit_callback:
+    #             emit_callback('Audio Feature Extraction', 
+    #                         'Extracting: MFCC, Spectral centroid, Zero-crossing rate', 
+    #                         session_id)
+            
+    #         audio_features = self.audio_feature_extractor.extract_features(
+    #             audio_tensor.unsqueeze(0).to(self.device)
+    #         )
+            
+    #         # Step 5: Model Inference
+    #         if emit_callback:
+    #             emit_callback('Model Inference', 'Running ECAPA-TDNN audio model', session_id)
+            
+    #         with torch.no_grad():
+    #             audio_batch = audio_tensor.unsqueeze(0).to(self.device)
+    #             prediction_logits = self.audio_detector(audio_batch)
+    #             prediction_probs = torch.softmax(prediction_logits, dim=1)
+    #             confidence, predicted_class = torch.max(prediction_probs, 1)
+            
+    #         processing_time = time.time() - start_time
+            
+    # return {
+    #             'prediction': 'FAKE' if predicted_class.item() == 1 else 'REAL',
+    #             'confidence': float(confidence.item()),
+    #             'feature_breakdown': audio_features,
+    #             'processing_time': processing_time,
+    #             'duration': preprocessed.get('duration', 0),
+    #             'sample_rate': preprocessed.get('sample_rate', 16000)
+    #         }
+            
+    # except Exception as e:
+    #         logger.error(f"Error in audio detection: {str(e)}", exc_info=True)
+    #         raise
+
+
     def detect_audio(
         self,
         audio_path: str,
@@ -1407,21 +1472,33 @@ class DeepfakeDetectionService:
             preprocessed = self.audio_preprocessor.preprocess_single(audio_path)
             audio_tensor = preprocessed['processed_audio']
             
-            # Step 3: Spectral Analysis
+            # Step 3: Feature Extraction
             if emit_callback:
-                emit_callback('Spectral Analysis', 'Computing MFCC coefficients', session_id)
+                emit_callback('Audio Feature Extraction', 'Extracting MFCC ,spectral features', session_id
+                )
+
+            audio_features = self.audio_feature_extractor.extract_features(
+                audio_tensor.unsqueeze(0).to(self.device)
+            )
+
+            
             
             # Step 4: Audio Feature Extraction
             if emit_callback:
-                emit_callback('Audio Feature Extraction', 
-                            'Extracting: MFCC, Spectral centroid, Zero-crossing rate', 
-                            session_id)
+                emit_callback('Model Inference', 
+                            'Running Wave2Vec2 deepfake datection model', 
+                            session_id
+                )
+
+            label, confidence = predict_audio(audio_path)
+
+            processing_time = time.time() - start_time
             
             audio_features = self.audio_feature_extractor.extract_features(
                 audio_tensor.unsqueeze(0).to(self.device)
             )
             
-            # Step 5: Model Inference
+            #Step 5: Model Inference
             if emit_callback:
                 emit_callback('Model Inference', 'Running ECAPA-TDNN audio model', session_id)
             
@@ -1432,10 +1509,12 @@ class DeepfakeDetectionService:
                 confidence, predicted_class = torch.max(prediction_probs, 1)
             
             processing_time = time.time() - start_time
+
+
             
             return {
-                'prediction': 'FAKE' if predicted_class.item() == 1 else 'REAL',
-                'confidence': float(confidence.item()),
+                'prediction': label,
+                'confidence': confidence,
                 'feature_breakdown': audio_features,
                 'processing_time': processing_time,
                 'duration': preprocessed.get('duration', 0),

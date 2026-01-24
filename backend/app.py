@@ -20,6 +20,9 @@ from flask_socketio import SocketIO, emit
 
 from preprocessing.video_preprocessor import VideoPreprocessor
 from models.video_detector import VideoDetector
+from api.detection_routes import detection_bp
+#app.register_blueprint(detection_bp)
+
 
 # Configure logging
 logging.basicConfig(
@@ -201,6 +204,7 @@ class RealDetectionService:
 def create_app():
     """Create Flask app with real detection service"""
     app = Flask(__name__)
+    app.register_blueprint(detection_bp)
     app.config['SECRET_KEY'] = 'deepfake-shield-secret'
     
     CORS(app, resources={r"/api/*": {"origins": "*"}})
@@ -210,10 +214,13 @@ def create_app():
     app.config['detection_service'] = RealDetectionService()
     
     logger.info("Flask app created with REAL detection service")
+    
     return app, socketio
 
 
 app, socketio = create_app()
+if __name__ == "__main__":
+    app.run(debug=True)
 
 
 # ============================================
@@ -409,6 +416,58 @@ def detect_video():
     
     except Exception as e:
         logger.error(f"Error: {e}", exc_info=True)
+        return jsonify({'error': str(e), 'status': 'error'}), 500
+
+@app.route('/audio', methods=['POST'])
+def detect_audio():
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        from werkzeug.utils import secure_filename
+        import uuid
+        
+        upload_dir = Path('uploads/temp')
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        
+        filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
+        filepath = upload_dir / filename
+        file.save(str(filepath))
+        
+        logger.info(f"Audio file saved: {filepath}")
+        
+        detection_service = app.config['detection_service']
+        
+        logger.info("Starting audio detection...")
+        result = detection_service.detect_audio(str(filepath))
+        
+        prediction = result.get('prediction', 'UNKNOWN')
+        confidence = float(result.get('confidence', 0.0))
+        
+        response = {
+            'prediction': prediction,
+            'confidence': confidence,
+            'probabilities': {
+                'REAL': float(1 - confidence),
+                'FAKE': float(confidence)
+            },
+            'status': 'success'
+        }
+        
+        try:
+            if filepath.exists():
+                filepath.unlink()
+        except:
+            pass
+        
+        return jsonify(response), 200
+    
+    except Exception as e:
+        logger.error(f"Audio detection error: {e}", exc_info=True)
         return jsonify({'error': str(e), 'status': 'error'}), 500
 
 
