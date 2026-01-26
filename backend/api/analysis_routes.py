@@ -990,6 +990,9 @@ from flask_socketio import SocketIO, emit
 import logging
 from datetime import datetime
 import torch
+from flask import Blueprint
+
+analysis_bp = Blueprint('analysis', __name__, url_prefix='/api/analysis')
 
 # Configure logging
 logging.basicConfig(

@@ -402,6 +402,7 @@ from datetime import datetime
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 
+# from services import detection_service
 from services.detection_service import DeepfakeDetectionService
 from utils.validators import validate_file_type, validate_file_size
 from utils.file_handlers import save_uploaded_file, cleanup_temp_file
@@ -412,18 +413,22 @@ detection_bp = Blueprint('detection', __name__,url_prefix='/api/detection')
 
 
 def emit_processing_step(step_name, details, session_id=None):
-    """Emit processing step to frontend via WebSocket"""
     try:
         from flask_socketio import emit
-        emit('processing_step', {
-            'name': step_name,
-            'details': details,
-            'timestamp': datetime.utcnow().isoformat(),
-            'status': 'completed'
-        }, room=session_id)
-    except Exception as e:
-        logger.warning(f"Failed to emit processing step: {e}")
-
+        if session_id:
+            emit(
+                'processing_step',
+                {
+                    'name': step_name,
+                    'details': details,
+                    'timestamp': datetime.utcnow().isoformat(),
+                    'status': 'completed'
+                },
+                room=session_id,
+                namespace='/'
+            )
+    except Exception:
+        pass  # Ignore when not in socket context
 
 @detection_bp.route('/image', methods=['POST'])
 def detect_image():
@@ -438,7 +443,7 @@ def detect_image():
         if 'file' not in request.files:
             return jsonify({"error": "No file part in the request"}), 400
         
-        file = request.files['file']
+        file = request.files.get("image") or request.files.get("file")
         if file.filename == '':
             return jsonify({"error": "No file selected"}), 400
         
@@ -464,11 +469,9 @@ def detect_image():
         emit_processing_step('Preprocessing Started', 'Initializing image preprocessor', session_id)
         
         # Detect and process
-        result = detection_service.detect_image(
-            str(temp_file),
-            session_id=session_id,
-            emit_callback=emit_processing_step
-        )
+        emit_processing_step('Preprocessing Started', 'Running image model', session_id)
+
+        result = detection_service.detect_image(str(temp_file))
         
         emit_processing_step('Detection Complete', 'Analysis finished', session_id)
         
@@ -528,15 +531,23 @@ def detect_video():
         
         detection_service = current_app.detection_service
         
-        emit_processing_step('Preprocessing Started', 'Initializing video preprocessor', session_id)
-        
+        emit_processing_step(
+            "Video Processing Started",
+            "Running video deepfake detection",
+            session_id
+        )
+
         result = detection_service.detect_video(
             str(temp_file),
-            session_id=session_id,
-            emit_callback=emit_processing_step
+            emit_callback=lambda step, msg: emit_processing_step(step, msg, session_id)
         )
-        
-        emit_processing_step('Detection Complete', 'Analysis finished', session_id)
+
+        emit_processing_step(
+            "Video Detection Complete",
+            "Video analysis finished",
+            session_id
+        )
+
         
         processing_time = time.time() - start_time
         response = {
@@ -594,16 +605,20 @@ def detect_audio():
         
         detection_service = current_app.detection_service
         
-        emit_processing_step('Preprocessing Started', 'Initializing audio preprocessor', session_id)
-        
-        result = detection_service.detect_audio(
-            str(temp_file),
-            session_id=session_id,
-            emit_callback=emit_processing_step
+        emit_processing_step(
+            "Audio Processing Started",
+            "Running audio deepfake detection",
+            session_id
         )
-        
-        emit_processing_step('Detection Complete', 'Analysis finished', session_id)
-        
+
+        result = detection_service.detect_audio(str(temp_file))
+
+        emit_processing_step(
+            "Audio Detection Complete",
+            "Audio analysis finished",
+            session_id
+        )
+
         processing_time = time.time() - start_time
         response = {
             "prediction": result['prediction'],

@@ -4,7 +4,7 @@ import numpy as np
 from pathlib import Path
 
 VIDEO_ROOT = Path("/content/drive/MyDrive/DeepFakeShield/backend/dataset/video")
-FRAME_ROOT = Path("/content/video_frames")  # 🔥 TEMP LOCATION
+FRAME_ROOT = Path("/content/drive/MyDrive/DeepFakeShield/backend/dataset/video_frames")  # 🔥 TEMP LOCATION
 
 NUM_FRAMES = 8
 IMAGE_SIZE = (224, 224)

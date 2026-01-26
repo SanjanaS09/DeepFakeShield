@@ -1053,7 +1053,9 @@ from features.visual_features import VisualFeatureExtractor
 from features.temporal_features import TemporalFeatureExtractor
 from features.audio_features import AudioFeatureExtractor
 from models.xai_explainer import XAIExplainer
-from models.audio_detection.inference import predict_audio
+from models.audio_detector import AudioDetector
+
+# from models.audio_detection.inference import predict_audio
 
 
 logger = logging.getLogger(__name__)
@@ -1457,70 +1459,43 @@ class DeepfakeDetectionService:
         session_id: Optional[str] = None,
         emit_callback: Optional[Callable] = None
     ) -> Dict[str, Any]:
-        """Detect deepfake in audio with real-time feedback"""
+        """Detect deepfake in audio"""
+
         try:
             start_time = time.time()
-            
-            # Step 1: Load Audio
+
             if emit_callback:
-                emit_callback('Audio Loading', 'Loading audio at 16kHz sample rate', session_id)
-            
-            # Step 2: Preprocessing
-            if emit_callback:
-                emit_callback('Audio Preprocessing', 'Resampling and normalizing audio', session_id)
-            
+                emit_callback('Audio Loading', 'Loading and preprocessing audio', session_id)
+
+            # Preprocess audio
             preprocessed = self.audio_preprocessor.preprocess_single(audio_path)
-            audio_tensor = preprocessed['processed_audio']
-            
-            # Step 3: Feature Extraction
+            audio_tensor = preprocessed['processed_audio'].to(self.device)
+
             if emit_callback:
-                emit_callback('Audio Feature Extraction', 'Extracting MFCC ,spectral features', session_id
-                )
+                emit_callback('Audio Feature Extraction', 'Extracting audio features', session_id)
 
             audio_features = self.audio_feature_extractor.extract_features(
-                audio_tensor.unsqueeze(0).to(self.device)
+                audio_tensor.unsqueeze(0)
             )
 
-            
-            
-            # Step 4: Audio Feature Extraction
             if emit_callback:
-                emit_callback('Model Inference', 
-                            'Running Wave2Vec2 deepfake datection model', 
-                            session_id
-                )
+                emit_callback('Model Inference', 'Running audio deepfake detector', session_id)
 
-            label, confidence = predict_audio(audio_path)
+            # ✅ SINGLE audio model inference
+            result = self.audio_detector.predict(audio_features)
 
             processing_time = time.time() - start_time
-            
-            audio_features = self.audio_feature_extractor.extract_features(
-                audio_tensor.unsqueeze(0).to(self.device)
-            )
-            
-            #Step 5: Model Inference
-            if emit_callback:
-                emit_callback('Model Inference', 'Running ECAPA-TDNN audio model', session_id)
-            
-            with torch.no_grad():
-                audio_batch = audio_tensor.unsqueeze(0).to(self.device)
-                prediction_logits = self.audio_detector(audio_batch)
-                prediction_probs = torch.softmax(prediction_logits, dim=1)
-                confidence, predicted_class = torch.max(prediction_probs, 1)
-            
-            processing_time = time.time() - start_time
 
-
-            
             return {
-                'prediction': label,
-                'confidence': confidence,
+                'prediction': result['prediction'],
+                'confidence': result['confidence'],
+                'probabilities': result['probabilities'],
                 'feature_breakdown': audio_features,
                 'processing_time': processing_time,
                 'duration': preprocessed.get('duration', 0),
                 'sample_rate': preprocessed.get('sample_rate', 16000)
             }
-            
+
         except Exception as e:
             logger.error(f"Error in audio detection: {str(e)}", exc_info=True)
             raise

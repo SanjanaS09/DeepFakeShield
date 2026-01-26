@@ -23,6 +23,7 @@ from models.video_detector import VideoDetector
 from api.detection_routes import detection_bp
 #app.register_blueprint(detection_bp)
 
+print("🚀 Starting DeepFake Shield backend...")
 
 # Configure logging
 logging.basicConfig(
@@ -202,26 +203,30 @@ class RealDetectionService:
 # CREATE FLASK APP
 # ============================================
 def create_app():
-    """Create Flask app with real detection service"""
     app = Flask(__name__)
-    app.register_blueprint(detection_bp)
     app.config['SECRET_KEY'] = 'deepfake-shield-secret'
-    
+
     CORS(app, resources={r"/api/*": {"origins": "*"}})
-    socketio = SocketIO(app, cors_allowed_origins="*")
-    
-    # Initialize REAL detection service
-    app.config['detection_service'] = RealDetectionService()
-    
+
+    socketio = SocketIO(
+        app,
+        cors_allowed_origins="*",
+        async_mode="threading",
+        logger=False,
+        engineio_logger=False
+    )
+
+    # ✅ INIT SERVICE FIRST
+    app.detection_service = RealDetectionService()
+
+    # ✅ THEN REGISTER BLUEPRINT
+    from api.detection_routes import detection_bp
+    app.register_blueprint(detection_bp)
+
     logger.info("Flask app created with REAL detection service")
-    
     return app, socketio
 
-
 app, socketio = create_app()
-if __name__ == "__main__":
-    app.run(debug=True)
-
 
 # ============================================
 # ROUTES
@@ -238,237 +243,237 @@ def index():
     }), 200
 
 
-@app.route('/api/detection/image', methods=['POST'])
-def detect_image():
-    """Image detection with real models - FIXED"""
-    try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
+# @app.route('/api/detection/image', methods=['POST'])
+# def detect_image():
+#     """Image detection with real models - FIXED"""
+#     try:
+#         if 'file' not in request.files:
+#             return jsonify({'error': 'No file provided'}), 400
         
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
+#         file = request.files['file']
+#         if file.filename == '':
+#             return jsonify({'error': 'No file selected'}), 400
         
-        from werkzeug.utils import secure_filename
-        import uuid
+#         from werkzeug.utils import secure_filename
+#         import uuid
         
-        upload_dir = Path('uploads/temp')
-        upload_dir.mkdir(parents=True, exist_ok=True)
+#         upload_dir = Path('uploads/temp')
+#         upload_dir.mkdir(parents=True, exist_ok=True)
         
-        filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
-        filepath = upload_dir / filename
-        file.save(str(filepath))
+#         filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
+#         filepath = upload_dir / filename
+#         file.save(str(filepath))
         
-        logger.info(f"File saved: {filepath}")
+#         logger.info(f"File saved: {filepath}")
         
-        detection_service = app.config['detection_service']
+#         detection_service = app.config['detection_service']
         
-        # ✅ RUN DETECTION
-        logger.info("Starting detection...")
-        result = detection_service.detect_image(str(filepath))
+#         # ✅ RUN DETECTION
+#         logger.info("Starting detection...")
+#         result = detection_service.detect_image(str(filepath))
         
-        # ✅ FIX: Ensure proper response format
-        if result.get('status') == 'error':
-            logger.error(f"Detection failed: {result.get('error')}")
-            return jsonify(result), 500
+#         # ✅ FIX: Ensure proper response format
+#         if result.get('status') == 'error':
+#             logger.error(f"Detection failed: {result.get('error')}")
+#             return jsonify(result), 500
         
-        # ✅ FIX: Convert prediction properly
-        prediction = result.get('prediction', 'UNKNOWN')
-        confidence = float(result.get('confidence', 0.0))
+#         # ✅ FIX: Convert prediction properly
+#         prediction = result.get('prediction', 'UNKNOWN')
+#         confidence = float(result.get('confidence', 0.0))
         
-        # Ensure valid confidence
-        if not (0 <= confidence <= 1):
-            confidence = 0.5
-            logger.warning("Invalid confidence value, set to 0.5")
+#         # Ensure valid confidence
+#         if not (0 <= confidence <= 1):
+#             confidence = 0.5
+#             logger.warning("Invalid confidence value, set to 0.5")
         
-        # ✅ BUILD RESPONSE WITH XAI
-        response = {
-            'prediction': prediction,  # Should be 'FAKE' or 'REAL'
-            'confidence': confidence,
-            'probabilities': {
-                'REAL': float(1 - confidence) if prediction == 'FAKE' else float(confidence),
-                'FAKE': float(confidence) if prediction == 'FAKE' else float(1 - confidence)
-            },
-            'label': prediction,
-            'file_name': filename,
-            'status': 'success',
-            # ✅ ADD XAI EXPLANATIONS
-            'xai': {
-                'explanation': f"{'🚨 DEEPFAKE DETECTED' if prediction == 'FAKE' else '✅ AUTHENTIC CONTENT'}",
-                'reasoning': get_reasoning(prediction, confidence),
-                'key_indicators': get_indicators(prediction, confidence),
-                'confidence_level': get_confidence_level(confidence),
-                'heatmap': None,  # Will add Grad-CAM if available
-                'recommendations': get_recommendations(prediction, confidence)
-            }
-        }
+#         # ✅ BUILD RESPONSE WITH XAI
+#         response = {
+#             'prediction': prediction,  # Should be 'FAKE' or 'REAL'
+#             'confidence': confidence,
+#             'probabilities': {
+#                 'REAL': float(1 - confidence) if prediction == 'FAKE' else float(confidence),
+#                 'FAKE': float(confidence) if prediction == 'FAKE' else float(1 - confidence)
+#             },
+#             'label': prediction,
+#             'file_name': filename,
+#             'status': 'success',
+#             # ✅ ADD XAI EXPLANATIONS
+#             'xai': {
+#                 'explanation': f"{'🚨 DEEPFAKE DETECTED' if prediction == 'FAKE' else '✅ AUTHENTIC CONTENT'}",
+#                 'reasoning': get_reasoning(prediction, confidence),
+#                 'key_indicators': get_indicators(prediction, confidence),
+#                 'confidence_level': get_confidence_level(confidence),
+#                 'heatmap': None,  # Will add Grad-CAM if available
+#                 'recommendations': get_recommendations(prediction, confidence)
+#             }
+#         }
         
-        # Cleanup
-        try:
-            if filepath.exists():
-                filepath.unlink()
-        except Exception as e:
-            logger.warning(f"Cleanup failed: {e}")
+#         # Cleanup
+#         try:
+#             if filepath.exists():
+#                 filepath.unlink()
+#         except Exception as e:
+#             logger.warning(f"Cleanup failed: {e}")
         
-        logger.info(f"✅ Detection result: {prediction} ({confidence:.2%})")
-        return jsonify(response), 200
+#         logger.info(f"✅ Detection result: {prediction} ({confidence:.2%})")
+#         return jsonify(response), 200
     
-    except Exception as e:
-        logger.error(f"Error: {e}", exc_info=True)
-        return jsonify({'error': str(e), 'status': 'error'}), 500
+#     except Exception as e:
+#         logger.error(f"Error: {e}", exc_info=True)
+#         return jsonify({'error': str(e), 'status': 'error'}), 500
 
 
-@app.route('/api/detection/video', methods=['POST'])
-def detect_video():
-    """Video detection with real-time feedback - FIXED"""
-    try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
+# @app.route('/api/detection/video', methods=['POST'])
+# def detect_video():
+#     """Video detection with real-time feedback - FIXED"""
+#     try:
+#         if 'file' not in request.files:
+#             return jsonify({'error': 'No file provided'}), 400
         
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
+#         file = request.files['file']
+#         if file.filename == '':
+#             return jsonify({'error': 'No file selected'}), 400
         
-        from werkzeug.utils import secure_filename
-        import uuid
+#         from werkzeug.utils import secure_filename
+#         import uuid
         
-        upload_dir = Path('uploads/temp')
-        upload_dir.mkdir(parents=True, exist_ok=True)
+#         upload_dir = Path('uploads/temp')
+#         upload_dir.mkdir(parents=True, exist_ok=True)
         
-        filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
-        filepath = upload_dir / filename
-        file.save(str(filepath))
+#         filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
+#         filepath = upload_dir / filename
+#         file.save(str(filepath))
         
-        logger.info(f"Video file saved: {filepath}")
+#         logger.info(f"Video file saved: {filepath}")
         
-        detection_service = app.config['detection_service']
+#         detection_service = app.config['detection_service']
         
-        def emit_progress(step, message):
-            logger.info(f"{step}: {message}")
+#         def emit_progress(step, message):
+#             logger.info(f"{step}: {message}")
         
-        logger.info("Starting video detection...")
-        result = detection_service.detect_video(str(filepath), emit_callback=emit_progress)
+#         logger.info("Starting video detection...")
+#         result = detection_service.detect_video(str(filepath), emit_callback=emit_progress)
         
-        # ✅ FIX: Handle error results properly
-        if result.get('status') == 'error':
-            logger.error(f"Detection failed: {result.get('error')}")
-            # Return error but with proper structure
-            response = {
-                'prediction': 'UNKNOWN',
-                'confidence': 0.0,
-                'probabilities': {'REAL': 0.5, 'FAKE': 0.5},
-                'status': 'error',
-                'error': result.get('error', 'Unknown error'),
-                'xai': {
-                    'explanation': '❌ Analysis failed',
-                    'reasoning': ['Unable to process video'],
-                    'key_indicators': {},
-                    'confidence_level': 'Unknown',
-                    'recommendations': ['Please try another video file']
-                }
-            }
-            try:
-                if filepath.exists():
-                    filepath.unlink()
-            except:
-                pass
-            return jsonify(response), 500
+#         # ✅ FIX: Handle error results properly
+#         if result.get('status') == 'error':
+#             logger.error(f"Detection failed: {result.get('error')}")
+#             # Return error but with proper structure
+#             response = {
+#                 'prediction': 'UNKNOWN',
+#                 'confidence': 0.0,
+#                 'probabilities': {'REAL': 0.5, 'FAKE': 0.5},
+#                 'status': 'error',
+#                 'error': result.get('error', 'Unknown error'),
+#                 'xai': {
+#                     'explanation': '❌ Analysis failed',
+#                     'reasoning': ['Unable to process video'],
+#                     'key_indicators': {},
+#                     'confidence_level': 'Unknown',
+#                     'recommendations': ['Please try another video file']
+#                 }
+#             }
+#             try:
+#                 if filepath.exists():
+#                     filepath.unlink()
+#             except:
+#                 pass
+#             return jsonify(response), 500
         
-        prediction = result.get('prediction', 'UNKNOWN')
-        confidence = float(result.get('confidence', 0.0))
+#         prediction = result.get('prediction', 'UNKNOWN')
+#         confidence = float(result.get('confidence', 0.0))
         
-        # Ensure valid confidence
-        if not (0 <= confidence <= 1):
-            confidence = 0.5
+#         # Ensure valid confidence
+#         if not (0 <= confidence <= 1):
+#             confidence = 0.5
         
-        # ✅ BUILD RESPONSE WITH XAI
-        response = {
-            'prediction': prediction,
-            'confidence': confidence,
-            'probabilities': result.get('probabilities', {
-                'REAL': float(1 - confidence),
-                'FAKE': float(confidence)
-            }),
-            'frames_analyzed': result.get('frames_analyzed', 0),
-            'fps': result.get('fps', 0),
-            'label': prediction,
-            'file_name': filename,
-            'status': 'success',
-            # ✅ ADD XAI EXPLANATIONS
-            'xai': {
-                'explanation': f"{'🚨 DEEPFAKE VIDEO DETECTED' if prediction == 'FAKE' else '✅ AUTHENTIC VIDEO'}",
-                'reasoning': get_video_reasoning(prediction, confidence, result),
-                'key_indicators': get_video_indicators(prediction, confidence),
-                'confidence_level': get_confidence_level(confidence),
-                'temporal_analysis': result.get('feature_breakdown', {}),
-                'recommendations': get_recommendations(prediction, confidence)
-            }
-        }
+#         # ✅ BUILD RESPONSE WITH XAI
+#         response = {
+#             'prediction': prediction,
+#             'confidence': confidence,
+#             'probabilities': result.get('probabilities', {
+#                 'REAL': float(1 - confidence),
+#                 'FAKE': float(confidence)
+#             }),
+#             'frames_analyzed': result.get('frames_analyzed', 0),
+#             'fps': result.get('fps', 0),
+#             'label': prediction,
+#             'file_name': filename,
+#             'status': 'success',
+#             # ✅ ADD XAI EXPLANATIONS
+#             'xai': {
+#                 'explanation': f"{'🚨 DEEPFAKE VIDEO DETECTED' if prediction == 'FAKE' else '✅ AUTHENTIC VIDEO'}",
+#                 'reasoning': get_video_reasoning(prediction, confidence, result),
+#                 'key_indicators': get_video_indicators(prediction, confidence),
+#                 'confidence_level': get_confidence_level(confidence),
+#                 'temporal_analysis': result.get('feature_breakdown', {}),
+#                 'recommendations': get_recommendations(prediction, confidence)
+#             }
+#         }
         
-        try:
-            if filepath.exists():
-                filepath.unlink()
-        except Exception as e:
-            logger.warning(f"Cleanup failed: {e}")
+#         try:
+#             if filepath.exists():
+#                 filepath.unlink()
+#         except Exception as e:
+#             logger.warning(f"Cleanup failed: {e}")
         
-        logger.info(f"✅ Video detection complete: {prediction} ({confidence:.2%})")
-        return jsonify(response), 200
+#         logger.info(f"✅ Video detection complete: {prediction} ({confidence:.2%})")
+#         return jsonify(response), 200
     
-    except Exception as e:
-        logger.error(f"Error: {e}", exc_info=True)
-        return jsonify({'error': str(e), 'status': 'error'}), 500
+#     except Exception as e:
+#         logger.error(f"Error: {e}", exc_info=True)
+#         return jsonify({'error': str(e), 'status': 'error'}), 500
 
-@app.route('/audio', methods=['POST'])
-def detect_audio():
-    try:
-        if 'file' not in request.files:
-            return jsonify({'error': 'No file provided'}), 400
+# @app.route('/audio', methods=['POST'])
+# def detect_audio():
+#     try:
+#         if 'file' not in request.files:
+#             return jsonify({'error': 'No file provided'}), 400
         
-        file = request.files['file']
-        if file.filename == '':
-            return jsonify({'error': 'No file selected'}), 400
+#         file = request.files['file']
+#         if file.filename == '':
+#             return jsonify({'error': 'No file selected'}), 400
         
-        from werkzeug.utils import secure_filename
-        import uuid
+#         from werkzeug.utils import secure_filename
+#         import uuid
         
-        upload_dir = Path('uploads/temp')
-        upload_dir.mkdir(parents=True, exist_ok=True)
+#         upload_dir = Path('uploads/temp')
+#         upload_dir.mkdir(parents=True, exist_ok=True)
         
-        filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
-        filepath = upload_dir / filename
-        file.save(str(filepath))
+#         filename = secure_filename(f"{uuid.uuid4()}_{file.filename}")
+#         filepath = upload_dir / filename
+#         file.save(str(filepath))
         
-        logger.info(f"Audio file saved: {filepath}")
+#         logger.info(f"Audio file saved: {filepath}")
         
-        detection_service = app.config['detection_service']
+#         detection_service = app.config['detection_service']
         
-        logger.info("Starting audio detection...")
-        result = detection_service.detect_audio(str(filepath))
+#         logger.info("Starting audio detection...")
+#         result = detection_service.detect_audio(str(filepath))
         
-        prediction = result.get('prediction', 'UNKNOWN')
-        confidence = float(result.get('confidence', 0.0))
+#         prediction = result.get('prediction', 'UNKNOWN')
+#         confidence = float(result.get('confidence', 0.0))
         
-        response = {
-            'prediction': prediction,
-            'confidence': confidence,
-            'probabilities': {
-                'REAL': float(1 - confidence),
-                'FAKE': float(confidence)
-            },
-            'status': 'success'
-        }
+#         response = {
+#             'prediction': prediction,
+#             'confidence': confidence,
+#             'probabilities': {
+#                 'REAL': float(1 - confidence),
+#                 'FAKE': float(confidence)
+#             },
+#             'status': 'success'
+#         }
         
-        try:
-            if filepath.exists():
-                filepath.unlink()
-        except:
-            pass
+#         try:
+#             if filepath.exists():
+#                 filepath.unlink()
+#         except:
+#             pass
         
-        return jsonify(response), 200
+#         return jsonify(response), 200
     
-    except Exception as e:
-        logger.error(f"Audio detection error: {e}", exc_info=True)
-        return jsonify({'error': str(e), 'status': 'error'}), 500
+#     except Exception as e:
+#         logger.error(f"Audio detection error: {e}", exc_info=True)
+#         return jsonify({'error': str(e), 'status': 'error'}), 500
 
 
 # ============================================
@@ -630,6 +635,5 @@ if __name__ == '__main__':
         app,
         host='127.0.0.1',
         port=5000,
-        debug=True,
-        allow_unsafe_werkzeug=True
+        debug=False
     )

@@ -51,7 +51,7 @@ class VideoModelTester:
         Returns:
             Results dictionary with metrics for each class
         """
-        dataset_path = Path(dataset_root) / 'video' / split
+        dataset_path = Path(dataset_root) / 'video' / 'test'
         
         if not dataset_path.exists():
             logger.error(f"❌ Split path not found: {dataset_path}")
