@@ -403,7 +403,7 @@ from flask import Blueprint, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 
 # from services import detection_service
-from services.detection_service import DeepfakeDetectionService
+# from services.detection_service import DeepfakeDetectionService
 from utils.validators import validate_file_type, validate_file_size
 from utils.file_handlers import save_uploaded_file, cleanup_temp_file
 
@@ -503,6 +503,7 @@ def detect_image():
 
 @detection_bp.route('/video', methods=['POST'])
 def detect_video():
+    detection_service = current_app.detection_service
     """
     Video deepfake detection endpoint with real-time preprocessing feedback
     """
@@ -551,18 +552,26 @@ def detect_video():
         
         processing_time = time.time() - start_time
         response = {
-            "prediction": result['prediction'],
-            "confidence": result['confidence'],
+            "prediction": result.get("prediction", "UNKNOWN"),
+            "confidence": float(result.get("confidence", 0.0)),
+            "probabilities": result.get(
+                "probabilities",
+                {
+                    "REAL": 1 - float(result.get("confidence", 0.5)),
+                    "FAKE": float(result.get("confidence", 0.5)),
+                }
+            ),
             "processing_time": processing_time,
-            "feature_breakdown": result.get('feature_breakdown', {}),
-            "temporal_analysis": result.get('temporal_analysis', {}),
-            "xai_visualization": result.get('xai_visualization', {}),
+            "feature_breakdown": result.get("feature_breakdown", {}),
+            "temporal_analysis": result.get("temporal_analysis", {}),
+            "xai_visualization": result.get("xai_visualization", {}),
             "file_info": {
                 "filename": file.filename,
-                "frames_analyzed": result.get('frames_analyzed', 0),
-                "fps": result.get('fps', 0)
-            }
+                "frames_analyzed": result.get("frames_analyzed", 0),
+                "fps": result.get("fps", 0),
+            },
         }
+
         
         return jsonify(response), 200
         

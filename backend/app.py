@@ -18,9 +18,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 
-from preprocessing.video_preprocessor import VideoPreprocessor
-from models.video_detector import VideoDetector
-from api.detection_routes import detection_bp
+
 #app.register_blueprint(detection_bp)
 
 print("🚀 Starting DeepFake Shield backend...")
@@ -47,7 +45,7 @@ class RealDetectionService:
         # Load models
         self.image_model = self.load_image_model()
         self.video_model = self.load_video_model()
-        self.video_preprocessor = VideoPreprocessor(device=str(self.device))
+        # self.video_preprocessor = VideoPreprocessor(device=str(self.device))
         self.audio_model = self.load_audio_model()
         
         logger.info("✓ Detection service initialized with real models")
@@ -79,25 +77,25 @@ class RealDetectionService:
             return None
 
     def load_video_model(self):
-        """Load frame-based video model"""
         try:
             logger.info("Loading frame-based video detector...")
-            
+
             from models.video_detector_frame_based import FrameBasedVideoDetector
-            
-            model = FrameBasedVideoDetector(
-                model_path='checkpoints/video/best_model.pth',
+
+            self.video_model = FrameBasedVideoDetector(
+                model_path="checkpoints/video/best_model.pth",
                 device=str(self.device),
                 num_frames=8,
                 frame_size=(224, 224)
             )
-            
+
             logger.info("✅ Video detector loaded successfully")
-            return model
-        
+            return self.video_model   # ✅ THIS IS THE FIX
+
         except Exception as e:
-            logger.error(f"Failed to load video model: {e}")
+            logger.error(f"Failed to load video model: {e}", exc_info=True)
             return None
+
 
     def load_audio_model(self):
         """Load audio model from checkpoint"""
