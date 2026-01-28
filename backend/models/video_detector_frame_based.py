@@ -93,35 +93,33 @@ class FrameBasedVideoDetector(nn.Module):
             probs = torch.softmax(logits, dim=1)
             video_prob = probs.mean(dim=0)
 
-        fake_probs = probs[:, 1]      # FAKE prob per frame
-        real_probs = probs[:, 0]
+        real_probs = probs[:, 1]
+        fake_probs = probs[:, 0]
 
-        fake_votes = (fake_probs > 0.5).sum().item()
-        real_votes = (real_probs > 0.5).sum().item()
-
-        avg_fake = fake_probs.mean().item()
+        # Averages
         avg_real = real_probs.mean().item()
+        avg_fake = fake_probs.mean().item()
 
-        # 🔐 STRICTER decision rule
-        if fake_votes >= 6 and avg_fake > 0.65:
-            prediction = "FAKE"
-            confidence = avg_fake
+        fake_votes = (probs[:, 0] > 0.6).sum().item()
+        real_votes = (probs[:, 1] > 0.6).sum().item()
+
+        if fake_votes + real_votes == 0:
+            confidence = probs[:, 0].mean().item()
+            prediction = "FAKE" if confidence > 0.5 else "REAL"
         else:
-            prediction = "REAL"
-            confidence = avg_real
-
-
+            prediction = "FAKE" if fake_votes > real_votes else "REAL"
+            confidence = max(fake_votes, real_votes) / self.num_frames
         return {
             "prediction": prediction,
-            "confidence": confidence,
+            "confidence": float(confidence),
             "probabilities": {
-                "REAL": avg_real,
-                "FAKE": avg_fake
+                "FAKE": float(probs[:, 0].mean().item()),
+                "REAL": float(probs[:, 1].mean().item()),
             },
             "frames_analyzed": self.num_frames,
             "frame_votes": {
-                "FAKE": fake_votes,
-                "REAL": real_votes
+                "FAKE": int(fake_votes),
+                "REAL": int(real_votes)
             },
             "status": "success"
         }
