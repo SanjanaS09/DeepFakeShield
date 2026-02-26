@@ -6,7 +6,10 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  padding: 3rem 2rem;
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
+  /* 🔥 centers entire layout */
   /* overflow-x: hidden; */
   position: relative;
 }
@@ -47,7 +50,7 @@
 }
 
 /* MAIN CONTENT LAYOUT */
-.detector-content {
+/* .detector-content {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -55,6 +58,18 @@
   z-index: 2;
   width: 100%;
   position: relative;
+} */
+
+.detector-content {
+  display: flex;
+  justify-content: center;
+  /* 🔥 Center everything */
+  gap: 40px;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  /* Makes it responsive */
+  max-width: 1300px;
+  margin: 0 auto;
 }
 
 /* UPLOAD PANEL */
@@ -197,16 +212,19 @@
 
 /* RESULTS PANEL */
 .results-panel {
-  flex: 1 1 500px;
+  flex: 1;
+  display: flex;
   justify-content: center;
   align-items: center;
   min-height: 500px;
   position: relative;
+  width: 700px;
 }
 
 .empty-state {
   text-align: center;
   opacity: 0.7;
+  width: 700px;
 }
 
 .empty-icon {

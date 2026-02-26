@@ -11,6 +11,7 @@
   padding: 4rem 2rem;
   position: relative;
   overflow: hidden;
+  width: 700px;
 }
 
 .processing-window::before {

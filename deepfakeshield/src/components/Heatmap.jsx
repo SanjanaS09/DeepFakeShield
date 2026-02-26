@@ -1,92 +1,84 @@
-// import React from "react";
-// import { HeatMapGrid } from "react-heatmap-grid";
+import "./Heatmap.css";
 
-// const HeatmapOverlay = ({ heatmapData }) => {
-//   if (!heatmapData) return null;
-  
-//   const cellStyle = {
-//     background: 'linear-gradient(135deg, rgba(84, 172, 191, 0.3), rgba(167, 235, 242, 0.5))',
-//     border: '1px solid rgba(255,255,255,0.1)',
-//     borderRadius: '4px'
-//   };
-  
-//   return (
-//     <div className="heatmap-overlay">
-//       <h4>Detection Heatmap</h4>
-//       <HeatMapGrid
-//         data={heatmapData.data}
-//         xLabels={heatmapData.xLabels}
-//         yLabels={heatmapData.yLabels}
-//         cellStyle={(background, value, min, max) => cellStyle}
-//       />
-//     </div>
-//   );
-// };
+const Heatmap = ({ result }) => {
 
-// export default HeatmapOverlay;
-
-
-import React, { useEffect, useRef } from 'react';
-import { Card } from '@/components/ui/card';
-
-export default function Heatmap({ title, data }) {
-  const canvasRef = useRef(null);
-
-  useEffect(() => {
-    if (!canvasRef.current || !data) return;
-
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    const imageData = ctx.createImageData(canvas.width, canvas.height);
-    const data_array = imageData.data;
-
-    // Normalize data to 0-255
-    const min = Math.min(...data.flat());
-    const max = Math.max(...data.flat());
-    const range = max - min || 1;
-
-    let idx = 0;
-    for (let i = 0; i < data.length; i++) {
-      for (let j = 0; j < data[0].length; j++) {
-        const normalized = ((data[i][j] - min) / range) * 255;
-        
-        // Hot colormap
-        let r, g, b;
-        if (normalized < 85) {
-          r = normalized * 3;
-          g = 0;
-          b = 255 - normalized * 3;
-        } else if (normalized < 170) {
-          r = 255;
-          g = (normalized - 85) * 3;
-          b = 0;
-        } else {
-          r = 255;
-          g = 255;
-          b = (normalized - 170) * 3;
-        }
-
-        data_array[idx] = Math.min(255, r);
-        data_array[idx + 1] = Math.min(255, g);
-        data_array[idx + 2] = Math.min(255, b);
-        data_array[idx + 3] = 255;
-
-        idx += 4;
-      }
-    }
-
-    ctx.putImageData(imageData, 0, 0);
-  }, [data]);
+  if (!result?.xai) return null;
+  const isFake = result?.isFake;
 
   return (
-    <Card className="p-4">
-      <h3 className="font-semibold mb-2 text-sm">{title}</h3>
-      <canvas
-        ref={canvasRef}
-        width={224}
-        height={224}
-        className="w-full border rounded"
-      />
-    </Card>
+    <div className="heatmap-container">
+      <h2>🧠 Explainable AI Analysis</h2>
+
+      {result.xai.heatmaps && (
+        <div className="heatmap-comparison">
+          {result.xai.heatmaps.map((frame, index) => (
+            <div key={index} className="heatmap-card">
+              <h4>Frame {index + 1}</h4>
+              <img
+                src={`data:image/jpeg;base64,${frame}`}
+                alt={`Frame ${index}`}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+      {/* <div className="heatmap-comparison">
+        {result.xai.original && (
+          <div className="heatmap-card">
+            <h4>Original Image</h4>
+            <img
+              src={`data:image/png;base64,${result.xai.original}`}
+              alt="Original"
+            />
+          </div>
+        )}
+
+        {result.xai.heatmap && (
+          <div className="heatmap-card">
+            <h4>GradCAM Heatmap</h4>
+            <img
+              src={`data:image/png;base64,${result.xai.heatmap}`}
+              alt="Heatmap"
+            />
+          </div>
+        )}
+      </div> */}
+
+      <div className="heatmap-reasoning">
+        <h3>AI Reasoning</h3>
+        <p>{result.xai.explanation}</p>
+        <p><strong>Confidence Level:</strong> {result.xai.confidence_level}</p>
+
+        <h4>Key Indicators</h4>
+        <ul>
+          {Object.entries(result.xai.key_indicators || {}).map(([key, value]) => (
+            <li key={key}>
+              <strong>{key}:</strong> {value}
+            </li>
+          ))}
+        </ul>
+
+        <h4>Recommendations</h4>
+        <ul>
+          {result.xai.recommendations?.map((rec, index) => (
+            <li key={index}>{rec}</li>
+          ))}
+        </ul>
+      </div>
+
+      {isFake ? (
+        <div className="recommendation-warning">
+          <h4>⚠️ Warning</h4>
+          <p>This content has been detected as a potential deepfake. Please verify the source before sharing.</p>
+        </div>
+      ) : (
+        <div className="recommendation-success">
+          <h4>✓ Status</h4>
+          <p>This content appears to be authentic based on our analysis.</p>
+        </div>
+      )}
+    </div>
   );
-}
+};
+
+export default Heatmap;

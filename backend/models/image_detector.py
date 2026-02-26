@@ -13,7 +13,6 @@ import numpy as np
 import time
 from PIL import Image
 import torchvision.transforms as transforms
-from models.explainability import ExplainabilityManager
 
 logger = logging.getLogger(__name__)
 
@@ -57,12 +56,7 @@ class ImageDeepfakeDetector:
                 std=[0.229, 0.224, 0.225]
             )
         ])
-        # Initialize explainability manager
-        self.explainer = ExplainabilityManager(self.backbone)
-
-        self.backbone.eval()
-        self.explainer = ExplainabilityManager(self.backbone)
-    
+        
     def _build_model(self, pretrained: bool = True):
         """Build ResNet18 model architecture"""
         # Load ResNet18
@@ -193,14 +187,6 @@ class ImageDeepfakeDetector:
 
             real_prob = float(probs[0, 0].item())
             fake_prob = float(probs[0, 1].item())
-
-            # Run SHAP (optional)
-            explanation = None
-            try:
-                explanation = self.explainer.explain_image(image_tensor.cpu())
-            except Exception as e:
-                logger.warning(f"SHAP failed: {e}")
-
             
             processing_time = time.time() - start_time
 
@@ -212,25 +198,6 @@ class ImageDeepfakeDetector:
                     "FAKE": fake_prob
                 },
                 "processing_time": processing_time,
-                "feature_breakdown": {},
-              "xai": {
-                "heatmap": explanation["heatmap_base64"] if explanation else None,
-                "explanation": f"{prediction} detected with {confidence_score:.2%} confidence",
-                "confidence_level": "High" if confidence_score > 0.8 else "Moderate",
-                "reasoning": [
-                    "Model evaluated spatial inconsistencies",
-                    "Facial feature distribution analyzed",
-                    "Deep convolutional activations examined"
-                ],
-                "key_indicators": {
-                    "Facial Consistency": "Low" if prediction == "FAKE" else "High",
-                    "Texture Integrity": "Compromised" if prediction == "FAKE" else "Natural"
-                },
-                "recommendations": [
-                    "Verify source authenticity",
-                    "Cross-check with trusted media"
-                ]
-            },
                 "status": "success"
             }
         

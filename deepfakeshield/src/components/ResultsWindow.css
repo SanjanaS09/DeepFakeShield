@@ -1,4 +1,6 @@
 results-window {
+  width: 100%;
+  max-width: 850px;   /* 🔥 Keeps it centered */
   min-height: 100vh;
   /* background: radial-gradient(circle at 50% 10%, #0a0b1a, #05060f 90%); */
   color: #e8f6ff;
@@ -120,8 +122,7 @@ results-window {
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: 3rem 2rem;
-  max-width: 700px;
-  width: 100%;
+  width: 700px;
   box-shadow: 0 10px 45px rgba(0, 0, 0, 0.5);
   position: relative;
   z-index: 2;
@@ -316,4 +317,93 @@ results-window {
 .fake-fill {
   background: linear-gradient(90deg, var(--color-error), var(--color-red-400));
   box-shadow: 0 0 var(--space-10) rgba(var(--color-error-rgb), 0.5);
+}
+
+/* =========================
+   XAI SECTION COMPACT
+========================= */
+
+/* ===============================
+   CENTER XAI SECTION
+================================= */
+
+.xai-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;   /* 🔥 centers everything */
+  margin-top: 40px;
+}
+
+/* Inner Card */
+.xai-section > div {
+  width: 100%;
+}
+
+/* Main XAI Card Container */
+.xai-section {
+  max-width: 850px;   /* Controls width */
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* IMAGE COMPARISON */
+
+.xai-comparison {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+  flex-wrap: wrap;
+  margin-bottom: 25px;
+}
+
+.xai-card {
+  width: 220px;
+  text-align: center;
+}
+
+.xai-card h4 {
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #ff6b6b;
+}
+
+.xai-card img {
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+}
+
+/* =========================
+   AI REASONING COMPACT
+========================= */
+
+.xai-reasoning {
+  width: 100%;
+  max-width: 750px;
+  margin: 0 auto;
+}
+
+.xai-reasoning h4 {
+  margin-bottom: 8px;
+  font-size: 15px;
+  color: #ff6b6b;
+}
+
+.xai-reasoning h5 {
+  margin-top: 10px;
+  font-size: 13px;
+  color: #ff6b6b;
+}
+
+.xai-reasoning ul {
+  padding-left: 18px;
+  margin: 6px 0;
+}
+
+.xai-reasoning li {
+  margin-bottom: 4px;
+  color: #ddd;
 }

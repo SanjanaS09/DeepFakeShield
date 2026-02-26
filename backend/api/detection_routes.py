@@ -482,7 +482,7 @@ def detect_image():
             "confidence": result['confidence'],
             "processing_time": processing_time,
             "feature_breakdown": result.get('feature_breakdown', {}),
-            "xai_visualization": result.get('xai_visualization', {}),
+            "xai": result.get('xai', {}),
             "file_info": {
                 "filename": file.filename,
                 "size_mb": result.get('file_size_mb', 0)
@@ -499,7 +499,6 @@ def detect_image():
         # Cleanup
         if temp_file:
             cleanup_temp_file(temp_file)
-
 
 @detection_bp.route('/video', methods=['POST'])
 def detect_video():

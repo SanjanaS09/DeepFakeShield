@@ -3,6 +3,7 @@ import './DeepfakeDetector.css';
 import ProcessingWindow from './ProcessingWindow';
 import ResultsWindow from './ResultsWindow';
 import axios from 'axios';
+import Heatmap from './Heatmap';
 // import io from 'socket.io-client';
 
 const DeepfakeDetector = () => {
@@ -267,6 +268,13 @@ const DeepfakeDetector = () => {
             </div>
           )}
         </div>
+        {result && !processing && (
+            <Heatmap
+              result={result}
+              mediaType={mediaType}
+              file={file}
+            />
+          )}
       </div>
     </div>
   );
