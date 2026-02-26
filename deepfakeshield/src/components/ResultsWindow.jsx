@@ -133,22 +133,22 @@ const ResultsWindow = ({ result, mediaType, file }) => {
           <div className="probability-row">
             <div className="probability-item">
               <div className="prob-label">✅ Real Probability</div>
-              <div className="prob-value">{realPct}%</div>
+              <div className="prob-value">{(result.realProbability * 100).toFixed(2)}%</div>
               <div className="prob-bar">
                 <div
                   className="prob-fill real-fill"
-                  style={{ width: `${realPct}%` }}
+                  style={{ width: `${(result.realProbability * 100).toFixed(2)}%` }}
                 />
               </div>
             </div>
 
             <div className="probability-item">
               <div className="prob-label">❌ Fake Probability</div>
-              <div className="prob-value">{fakePct}%</div>
+              <div className="prob-value">{(result.fakeProbability * 100).toFixed(2)}%</div>
               <div className="prob-bar">
                 <div
                   className="prob-fill fake-fill"
-                  style={{ width: `${fakePct}%` }}
+                  style={{ width: `${(result.fakeProbability * 100).toFixed(2)}%` }}
                 />
               </div>
             </div>
@@ -203,6 +203,17 @@ const ResultsWindow = ({ result, mediaType, file }) => {
       )}
 
       <div className="results-recommendation">
+        {result.xai?.heatmap && (
+          <div className="xai-heatmap">
+            <h4>Heatmap Visualization</h4>
+            <img
+              src={`data:image/png;base64,${result.xai.heatmap}`}
+              alt="XAI Heatmap"
+              style={{ width: '100%', borderRadius: '10px', marginTop: '10px' }}
+            />
+          </div>
+        )}
+
         {isFake ? (
           <div className="recommendation-warning">
             <h4>⚠️ Warning</h4>

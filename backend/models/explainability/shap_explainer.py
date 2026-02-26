@@ -27,7 +27,6 @@ class ShapExplainer:
 
         shap_values = self.explainer.shap_values(image_tensor)
 
-        # Take class 1 (fake) or 0 (real)
         heatmap = shap_values[0][0].mean(axis=0)
 
         heatmap = np.maximum(heatmap, 0)
@@ -37,12 +36,10 @@ class ShapExplainer:
         heatmap = np.uint8(255 * heatmap)
         heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
 
-        # Convert to base64
         pil_img = Image.fromarray(heatmap)
         buffer = BytesIO()
         pil_img.save(buffer, format="PNG")
+
         encoded = base64.b64encode(buffer.getvalue()).decode()
 
-        return {
-            "heatmap_base64": encoded
-        }
+        return encoded

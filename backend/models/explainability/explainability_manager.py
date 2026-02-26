@@ -16,7 +16,7 @@ class ExplainabilityManager:
         Generate explanation for image input
         """
 
-        result = self.shap_explainer.explain(input_tensor)
+        result = self.shap_explainer.explain_image(input_tensor)
 
         return {
             "shap_explanation": result

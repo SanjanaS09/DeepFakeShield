@@ -42,7 +42,7 @@ class DeepfakeDetectionService:
         # Model paths
         self.IMAGE_MODEL_PATH = "checkpoints/image/best_model.pth"
         self.VIDEO_MODEL_PATH = "checkpoints/video/best_model.pth"
-        self.AUDIO_MODEL_PATH = "checkpoints/audio/best_model.pth"
+        self.AUDIO_MODEL_PATH = "checkpoints/audio/best_model.pt"
         
         # Initialize as None (lazy loading)
         self._image_detector = None

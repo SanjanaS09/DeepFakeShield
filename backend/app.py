@@ -100,7 +100,7 @@ class RealDetectionService:
     def load_audio_model(self):
         """Load audio model from checkpoint"""
         try:
-            checkpoint_path = Path("checkpoints/audio/best_model.pth")
+            checkpoint_path = Path("checkpoints/audio/best_model.pt")
             if not checkpoint_path.exists():
                 logger.warning(f"Audio model not found at {checkpoint_path}")
                 return None
@@ -206,13 +206,13 @@ def create_app():
 
     CORS(app, resources={r"/api/*": {"origins": "*"}})
 
-    socketio = SocketIO(
-        app,
-        cors_allowed_origins="*",
-        async_mode="threading",
-        logger=False,
-        engineio_logger=False
-    )
+    # socketio = SocketIO(
+    #     app,
+    #     cors_allowed_origins="*",
+    #     async_mode="threading",
+    #     logger=False,
+    #     engineio_logger=False
+    # )
 
     # ✅ INIT SERVICE FIRST
     app.detection_service = RealDetectionService()
@@ -222,9 +222,9 @@ def create_app():
     app.register_blueprint(detection_bp)
 
     logger.info("Flask app created with REAL detection service")
-    return app, socketio
+    return app
 
-app, socketio = create_app()
+app  = create_app()
 
 # ============================================
 # ROUTES
@@ -629,9 +629,11 @@ if __name__ == '__main__':
     print("   - Audio:  POST http://127.0.0.1:5000/api/detection/audio")
     print("="*70 + "\n")
     
-    socketio.run(
-        app,
-        host='127.0.0.1',
-        port=5000,
-        debug=False
-    )
+    # socketio.run(
+    #     app,
+    #     host='127.0.0.1',
+    #     port=5000,
+    #     debug=False
+    # )
+
+    app.run(host="127.0.0.1", port=5000)

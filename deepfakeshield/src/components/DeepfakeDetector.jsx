@@ -3,7 +3,7 @@ import './DeepfakeDetector.css';
 import ProcessingWindow from './ProcessingWindow';
 import ResultsWindow from './ResultsWindow';
 import axios from 'axios';
-import io from 'socket.io-client';
+// import io from 'socket.io-client';
 
 const DeepfakeDetector = () => {
   const [file, setFile] = useState(null);
@@ -12,9 +12,10 @@ const DeepfakeDetector = () => {
   const [processingSteps, setProcessingSteps] = useState([]);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
-  const [sessionId, setSessionId] = useState(null);
 
-  const socketRef = useRef(null);
+  // const [sessionId, setSessionId] = useState(null);
+
+  // const socketRef = useRef(null);
   const stepCounterRef = useRef(0);
 
   const BACKEND_URL = 'http://localhost:5000';
@@ -25,35 +26,35 @@ const DeepfakeDetector = () => {
   };
 
   // Initialize WebSocket connection
-  useEffect(() => {
-    socketRef.current = io(BACKEND_URL, {
-      transports: ['websocket', 'polling']
-    });
+  // useEffect(() => {
+  //   socketRef.current = io(BACKEND_URL, {
+  //     transports: ['websocket', 'polling']
+  //   });
 
-    socketRef.current.on('connect', () => {
-      console.log('WebSocket connected:', socketRef.current.id);
-      setSessionId(socketRef.current.id);
-    });
+  //   socketRef.current.on('connect', () => {
+  //     console.log('WebSocket connected:', socketRef.current.id);
+  //     setSessionId(socketRef.current.id);
+  //   });
 
-    socketRef.current.on('connection_response', (data) => {
-      console.log('Connection response:', data);
-    });
+  //   socketRef.current.on('connection_response', (data) => {
+  //     console.log('Connection response:', data);
+  //   });
 
-    socketRef.current.on('processing_step', (step) => {
-      console.log('Processing step received:', step);
-      addProcessingStep(step.name, step.details);
-    });
+  //   socketRef.current.on('processing_step', (step) => {
+  //     console.log('Processing step received:', step);
+  //     addProcessingStep(step.name, step.details);
+  //   });
 
-    socketRef.current.on('disconnect', () => {
-      console.log('WebSocket disconnected');
-    });
+  //   socketRef.current.on('disconnect', () => {
+  //     console.log('WebSocket disconnected');
+  //   });
 
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
-  }, []);
+  //   return () => {
+  //     if (socketRef.current) {
+  //       socketRef.current.disconnect();
+  //     }
+  //   };
+  // }, []);
 
   const handleFileSelect = (e) => {
     const selectedFile = e.target.files[0];
@@ -92,16 +93,16 @@ const DeepfakeDetector = () => {
 
     try {
       // Emit start processing event
-      if (socketRef.current) {
-        socketRef.current.emit('start_processing', { filename: file.name });
-      }
+      // if (socketRef.current) {
+      //   socketRef.current.emit('start_processing', { filename: file.name });
+      // }
 
       // Prepare form data
       const formData = new FormData();
       formData.append('file', file);
-      if (sessionId) {
-        formData.append('session_id', sessionId);
-      }
+      // if (sessionId) {
+      //   formData.append('session_id', sessionId);
+      // }
 
       // Add initial step
       addProcessingStep('File Upload', `Uploading ${file.name} (${(file.size / 1024 / 1024).toFixed(2)} MB)`);
@@ -116,14 +117,17 @@ const DeepfakeDetector = () => {
         headers: {
           'Content-Type': 'multipart/form-data'
         },
-        timeout: 120000  // 2 minutes timeout
+        timeout: 300000  // 2 minutes timeout
       });
 
       console.log('API Response:', response.data);
 
       // Process response
       const prediction = response.data.prediction;
-      const probabilities = response.data.probabilities || {};
+      const probabilities = response.data.probabilities || {
+        REAL: response.data.prediction === "REAL" ? response.data.confidence : 1 - response.data.confidence,
+        FAKE: response.data.prediction === "FAKE" ? response.data.confidence : 1 - response.data.confidence
+      };
 
       setResult({
         // ✅ CORE FLAGS
@@ -132,8 +136,8 @@ const DeepfakeDetector = () => {
         confidence: response.data.confidence,
 
         // ✅ PROBABILITIES (NEW BACKEND FORMAT)
-        fakeProbability: probabilities.FAKE ?? 0,
-        realProbability: probabilities.REAL ?? 0,
+        fakeProbability: probabilities.FAKE,
+        realProbability: probabilities.REAL,
 
         // ✅ METADATA
         processingTime: response.data.processing_time,
@@ -163,13 +167,13 @@ const DeepfakeDetector = () => {
       <header className="detector-header">
         <h1>🛡️ DeepFake Shield</h1>
         <p>Advanced AI-Powered Deepfake Detection System</p>
-        <div className="connection-status">
+        {/* <div className="connection-status">
           {sessionId ? (
             <span className="status-connected">🟢 Connected</span>
           ) : (
             <span className="status-disconnected">🔴 Disconnected</span>
           )}
-        </div>
+        </div> */}
       </header>
 
       <div className="detector-content">
