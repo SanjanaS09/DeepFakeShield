@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: flex-start;
   padding: 2rem;
-  max-width: 1400px;
+  max-width: 1800px;
   margin: 0 auto;
   /* 🔥 centers entire layout */
   /* overflow-x: hidden; */
@@ -68,7 +68,7 @@
   align-items: flex-start;
   flex-wrap: wrap;
   /* Makes it responsive */
-  max-width: 1300px;
+  max-width: 1500px;
   margin: 0 auto;
 }
 
@@ -76,7 +76,7 @@
 .upload-panel {
   flex: 1 1 350px;
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: flex-start;
 }
 

@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Callable, List
 from datetime import datetime
 import logging
-
+import base64
+import cv2
+import numpy as np
 import torch
 
 BACKEND_ROOT = Path(__file__).parent
@@ -29,6 +31,10 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
+
+def encode_image_to_base64(image):
+    _, buffer = cv2.imencode(".jpg", image)
+    return base64.b64encode(buffer).decode("utf-8")
 
 # ============================================
 # REAL DETECTION SERVICE - USES TRAINED MODELS
@@ -59,6 +65,9 @@ class RealDetectionService:
             self.video_xai = XAIEngine(self.video_model.model)
         else:
             self.video_xai = None
+
+        print("VIDEO MODEL EXISTS:", self.video_model is not None)
+        print("VIDEO XAI EXISTS:", self.video_xai is not None)
 
         # if self.audio_model:
         #     self.audio_xai = XAIEngine(self.audio_model.model)
@@ -208,13 +217,6 @@ class RealDetectionService:
     #         logger.error(f"Image detection error: {e}", exc_info=True)
     #         return {'error': str(e), 'status': 'error'}
 
-    import base64
-    import cv2
-
-    def encode_image_to_base64(image):
-        _, buffer = cv2.imencode(".jpg", image)
-        return base64.b64encode(buffer).decode("utf-8")
-
     def detect_image(self, image_path):
         try:
             logger.info(f"Processing image: {image_path}")
@@ -237,7 +239,7 @@ class RealDetectionService:
                 "processing_time": result.get("processing_time", 0),
                 "xai": {
                     "original": original_base64,
-                    "heatmaps": heatmap_base64,
+                    "heatmap": heatmap_base64,
                     "explanation": f"{prediction} detected with {confidence_score:.2%} confidence",
                     "confidence_level": "High" if confidence_score > 0.8 else "Moderate",
                     "reasoning": [
@@ -260,69 +262,69 @@ class RealDetectionService:
         except Exception as e:
             logger.error(f"Image detection error: {e}", exc_info=True)
             return {"error": str(e), "status": "error"}
-            
-    import cv2
-    import base64
 
-    def encode_image_to_base64(image):
-        _, buffer = cv2.imencode(".jpg", image)
-        return base64.b64encode(buffer).decode("utf-8")
 
     def detect_video(self, video_path, emit_callback=None):
         try:
             logger.info(f"Processing video: {video_path}")
 
-            if emit_callback:
-                emit_callback("Video Processing", "Running frame-based detection...")
-
             result = self.video_model.predict(video_path)
+            logger.info(f"Raw video result: {result}")
 
             prediction = result["prediction"]
-            confidence = result["confidence"]
+            confidence = float(result["confidence"])
 
-            if emit_callback:
-                emit_callback("Generating XAI", "Creating GradCAM heatmaps...")
+            xai_data = {}
 
-            # 🔥 Generate heatmaps
-            heatmaps = self.video_xai.explain_video(video_path)
+            # 🔥 VIDEO XAI
+            if self.video_xai:
+                frames = self.video_model.extract_frames(video_path)
 
-            heatmap_base64 = [
-                encode_image_to_base64(frame)
-                for frame in heatmaps
-            ]
+                if frames is not None:
+                    frames_np = frames.cpu().numpy()
+                    heatmaps = []
 
-            logger.info("Video XAI generated successfully")
+                    for i in range(frames_np.shape[0]):
+                        frame = frames_np[i]
+                        frame = np.transpose(frame, (1, 2, 0))  # C,H,W → H,W,C
+                        frame = (frame * 255).astype("uint8")
+
+                        heatmap = self.video_xai.explain_image(frame)
+                        heatmaps.append(encode_image_to_base64(heatmap))
+
+                    xai_data = {
+                        "heatmap_frames": heatmaps,
+                        "explanation": f"{prediction} video detected with {confidence:.2%} confidence",
+                        "confidence_level": "High" if confidence > 0.8 else "Moderate",
+                        "key_indicators": {
+                            "Temporal Consistency": "Low" if prediction == "FAKE" else "High",
+                            "Frame Stability": "Inconsistent" if prediction == "FAKE" else "Stable"
+                        },
+                        "recommendations": [
+                            "Verify source authenticity",
+                            "Check original upload source",
+                            "Avoid resharing if suspicious"
+                        ]
+                    }
 
             return {
                 "prediction": prediction,
                 "confidence": confidence,
-                "probabilities": result.get("probabilities", {}),
-                "frames_analyzed": len(heatmap_base64),
-                "xai": {
-                    "heatmaps": heatmap_base64,
-                    "explanation": f"{prediction} detected with {confidence:.2%} confidence",
-                    "confidence_level": "High" if confidence > 0.8 else "Moderate",
-                    "reasoning": [
-                        "Temporal inconsistencies analyzed",
-                        "Frame-level convolution activations examined",
-                        "Motion artifact detection performed"
-                    ],
-                    "key_indicators": {
-                        "Temporal Consistency": "Low" if prediction == "FAKE" else "High",
-                        "Frame Artifacts": "Detected" if prediction == "FAKE" else "Minimal"
-                    },
-                    "recommendations": [
-                        "Review suspicious frames",
-                        "Verify original source"
-                    ]
-                },
+                "probabilities": result["probabilities"],
+                "frames_analyzed": result.get("frames_analyzed", 0),
+                "xai": xai_data,
                 "status": "success"
             }
 
         except Exception as e:
             logger.error(f"Video detection error: {e}", exc_info=True)
-            return {"error": str(e), "status": "error"}
-    
+            return {
+                "prediction": "UNKNOWN",
+                "confidence": 0.0,
+                "probabilities": {"REAL": 0.5, "FAKE": 0.5},
+                "status": "error"
+            }
+        
     def detect_audio(self, audio_path):
         try:
             logger.info(f"Processing audio: {audio_path}")

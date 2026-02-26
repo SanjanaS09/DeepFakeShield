@@ -199,6 +199,7 @@ results-window {
   margin: 0 50px;
   box-shadow: 0 0 30px rgba(100, 200, 255, 0.1);
   backdrop-filter: blur(18px);
+  margin-top: 50px;
   -webkit-backdrop-filter: blur(18px);
 }
 

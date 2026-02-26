@@ -563,7 +563,7 @@ def detect_video():
             "processing_time": processing_time,
             "feature_breakdown": result.get("feature_breakdown", {}),
             "temporal_analysis": result.get("temporal_analysis", {}),
-            "xai_visualization": result.get("xai_visualization", {}),
+            "xai": result.get("xai", {}),
             "file_info": {
                 "filename": file.filename,
                 "frames_analyzed": result.get("frames_analyzed", 0),
@@ -571,7 +571,8 @@ def detect_video():
             },
         }
 
-        
+        if result is None:
+            logger.error("Video model returned None")
         return jsonify(response), 200
         
     except Exception as e:
@@ -633,7 +634,7 @@ def detect_audio():
             "confidence": result['confidence'],
             "processing_time": processing_time,
             "feature_breakdown": result.get('feature_breakdown', {}),
-            "xai_visualization": result.get('xai_visualization', {}),
+            "xai": result.get('xai', {}),
             "file_info": {
                 "filename": file.filename,
                 "duration_seconds": result.get('duration', 0),
