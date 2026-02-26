@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 from PIL import Image
 import torchvision.transforms as transforms
+from models.explainability import ExplainabilityManager
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,11 @@ class ImageDeepfakeDetector:
                 std=[0.229, 0.224, 0.225]
             )
         ])
+        # Initialize explainability manager
+        self.explainer = ExplainabilityManager(self.backbone)
+
+        self.backbone.eval()
+        self.explainer = ExplainabilityManager(self.backbone)
     
     def _build_model(self, pretrained: bool = True):
         """Build ResNet18 model architecture"""
@@ -182,6 +188,11 @@ class ImageDeepfakeDetector:
             class_names = ['REAL', 'FAKE']
             prediction = class_names[predicted_class.item()]
             confidence_score = float(confidence.item())
+
+            print("Running SHAP explanation...")
+
+            print("SHAP explanation:", explanation)
+            explanation = self.explainer.explain_image(image_tensor.cpu())
             
             logger.info(f"Prediction: {prediction} ({confidence_score:.2%})")
             
@@ -193,6 +204,7 @@ class ImageDeepfakeDetector:
                     'FAKE': float(probs[0, 1].item())
                 },
                 'class_index': int(predicted_class.item()),
+                'xai_visualization': explanation,
                 'status': 'success'
             }
         
