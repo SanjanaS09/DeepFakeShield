@@ -39,6 +39,25 @@ def encode_image_to_base64(image):
 # ============================================
 # REAL DETECTION SERVICE - USES TRAINED MODELS
 # ============================================
+
+@app.route("/api/detection/image-url", methods=["POST"])
+def detect_image_url():
+        data = request.get_json()
+        image_url = data.get("url")
+
+        # download image
+        import requests
+        import tempfile
+
+        response = requests.get(image_url)
+        temp = tempfile.NamedTemporaryFile(delete=False, suffix=".jpg")
+        temp.write(response.content)
+        temp.close()
+
+        result = app.config['detection_service'].detect_image(temp.name)
+
+        return jsonify(result)
+
 class RealDetectionService:
     """Detection service using actual trained models"""
     
@@ -262,7 +281,6 @@ class RealDetectionService:
         except Exception as e:
             logger.error(f"Image detection error: {e}", exc_info=True)
             return {"error": str(e), "status": "error"}
-
 
     def detect_video(self, video_path, emit_callback=None):
         try:

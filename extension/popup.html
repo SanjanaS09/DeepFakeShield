@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="results-window real" id="resultsWindow">
+
+  <div class="results-header">
+    <h3>DeepFake Shield</h3>
+    <p>AI Deepfake Detection</p>
+  </div>
+
+  <button class="detect-btn" id="captureBtn">
+    Capture & Detect
+  </button>
+
+  <div class="confidence-display" id="resultSection" style="display:none;">
+
+    <div class="confidence-meter">
+      <svg class="confidence-gauge" viewBox="0 0 120 120">
+        <circle
+          cx="60"
+          cy="60"
+          r="50"
+          stroke="#222"
+          stroke-width="10"
+          fill="none"
+        />
+        <circle
+          id="progressCircle"
+          cx="60"
+          cy="60"
+          r="50"
+          stroke="#4caf50"
+          stroke-width="10"
+          fill="none"
+          stroke-linecap="round"
+          stroke-dasharray="314"
+          stroke-dashoffset="314"
+        />
+        <text
+          x="60"
+          y="65"
+          text-anchor="middle"
+          font-size="18"
+          fill="#fff"
+          id="confidenceValue"
+        >0%</text>
+      </svg>
+    </div>
+
+    <div class="confidence-label">
+      <p id="predictionText">Waiting...</p>
+    </div>
+
+    <div class="results-details">
+      <div class="result-item">
+        <span class="result-label">Label</span>
+        <span class="result-value" id="labelValue">-</span>
+      </div>
+
+      <div class="result-item">
+        <span class="result-label">Media Type</span>
+        <span class="result-value">IMAGE</span>
+      </div>
+    </div>
+
+    <div class="probability-section">
+      <div class="probability-row">
+
+        <div class="probability-item">
+          <div class="prob-label">Real Probability</div>
+          <div class="prob-value" id="realProb">0%</div>
+          <div class="prob-bar">
+            <div class="prob-fill real-fill" id="realBar"></div>
+          </div>
+        </div>
+
+        <div class="probability-item">
+          <div class="prob-label">Fake Probability</div>
+          <div class="prob-value" id="fakeProb">0%</div>
+          <div class="prob-bar">
+            <div class="prob-fill fake-fill" id="fakeBar"></div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="xai-section">
+      <div class="xai-card">
+        <h4>Heatmap</h4>
+        <img id="heatmapImage" />
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<script src="popup.js"></script>
+</body>
+</html>

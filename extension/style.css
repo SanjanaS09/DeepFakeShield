@@ -1,0 +1,96 @@
+body {
+    margin: 0;
+    width: 420px;
+    font-family: "Montserrat", sans-serif;
+    background: linear-gradient(rgba(10, 15, 30, 0.85),
+            rgba(10, 15, 30, 0.85)),
+        url("assets/hero-bg.jpg") no-repeat center center;
+    background-size: cover;
+    color: #e8f6ff;
+
+}
+
+.results-window {
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.detect-btn {
+    width: 100%;
+    padding: 0.8rem;
+    margin-bottom: 1.5rem;
+    border-radius: 30px;
+    border: none;
+    background: linear-gradient(135deg, #40c9ff, #a46bff);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.confidence-display {
+    margin-top: 1rem;
+}
+
+.confidence-meter {
+    width: 150px;
+    margin: 0 auto;
+}
+
+.results-details {
+    margin-top: 1rem;
+}
+
+.result-item {
+    display: flex;
+    justify-content: space-between;
+    margin: 0.5rem 0;
+}
+
+.probability-section {
+    margin-top: 1rem;
+}
+
+.probability-row {
+    display: flex;
+    gap: 10px;
+}
+
+.probability-item {
+    flex: 1;
+}
+
+.prob-bar {
+    height: 6px;
+    background: #222;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.prob-fill {
+    height: 100%;
+    width: 0%;
+    transition: width 0.6s ease;
+}
+
+.real-fill {
+    background: #4caf50;
+}
+
+.fake-fill {
+    background: #f44336;
+}
+
+.xai-card img {
+    width: 100%;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+
+#progressCircle {
+    transition: stroke-dashoffset 0.8s ease, stroke 0.5s ease;
+}
+
+#realBar,
+#fakeBar {
+    transition: width 0.8s ease;
+}
