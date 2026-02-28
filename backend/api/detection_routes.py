@@ -629,16 +629,23 @@ def detect_audio():
         )
 
         processing_time = time.time() - start_time
+        if result.get("status") == "error":
+            return jsonify(result), 500
+
         response = {
-            "prediction": result['prediction'],
-            "confidence": result['confidence'],
+            "prediction": result.get("prediction", "UNKNOWN"),
+            "confidence": float(result.get("confidence", 0.0)),
+            "probabilities": result.get("probabilities", {
+                "REAL": 0.5,
+                "FAKE": 0.5
+            }),
             "processing_time": processing_time,
-            "feature_breakdown": result.get('feature_breakdown', {}),
-            "xai": result.get('xai', {}),
+            "feature_breakdown": result.get("feature_breakdown", {}),
+            "xai": result.get("xai", {}),
             "file_info": {
                 "filename": file.filename,
-                "duration_seconds": result.get('duration', 0),
-                "sample_rate": result.get('sample_rate', 0)
+                "duration_seconds": result.get("duration", 0),
+                "sample_rate": result.get("sample_rate", 0)
             }
         }
         

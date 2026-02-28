@@ -47,32 +47,108 @@ const Heatmap = ({ result }) => {
           </div>
         )}
 
+      {/* AUDIO HEATMAP */}
+      {/* AUDIO HEATMAP */}
+      {result.xai.spectrogram && result.xai.saliency_map && (
+        <div className="heatmap-comparison">
+          <div className="heatmap-card">
+            <h4>Audio Spectrogram</h4>
+            <img
+              src={`data:image/jpeg;base64,${result.xai.spectrogram}`}
+              alt="Spectrogram"
+            />
+          </div>
+
+          <div className="heatmap-card">
+            <h4>Audio Saliency Map</h4>
+            <img
+              src={`data:image/jpeg;base64,${result.xai.saliency_map}`}
+              alt="Saliency"
+            />
+          </div>
+        </div>
+      )}
+
       {/* AI Reasoning */}
       <div className="heatmap-reasoning">
         <h3>AI Reasoning</h3>
-        <p>{result.xai.explanation}</p>
-        <p>
-          <strong>Confidence Level:</strong>{" "}
-          {result.xai.confidence_level}
-        </p>
 
-        <h4>Key Indicators</h4>
-        <ul>
-          {Object.entries(result.xai.key_indicators || {}).map(
-            ([key, value]) => (
-              <li key={key}>
-                <strong>{key}:</strong> {value}
-              </li>
-            )
-          )}
-        </ul>
+        {/* Explanation */}
+        {result.xai.explanation && <p>{result.xai.explanation}</p>}
 
-        <h4>Recommendations</h4>
-        <ul>
-          {result.xai.recommendations?.map((rec, index) => (
-            <li key={index}>{rec}</li>
-          ))}
-        </ul>
+        {/* Confidence */}
+        {result.xai.confidence_level && (
+          <p>
+            <strong>Confidence Level:</strong> {result.xai.confidence_level}
+          </p>
+        )}
+
+        {/* Risk Badge */}
+        {(result.risk_level || result.xai?.risk_level) && (
+          <span
+            className={`risk-${(
+              result.risk_level || result.xai?.risk_level
+            ).toLowerCase()}`}
+          >
+            Risk: {result.risk_level || result.xai?.risk_level}
+          </span>
+        )}
+
+        {/* Reasoning List */}
+        {Array.isArray(result.xai.reasoning) && (
+          <>
+            <h4>Model Reasoning</h4>
+            <ul>
+              {result.xai.reasoning.map((reason, idx) => (
+                <li key={idx}>{reason}</li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {/* Key Indicators / Keypoints */}
+        {(result.xai.key_indicators || result.xai.keypoints) && (
+          <>
+            <h4>Key Indicators</h4>
+            <ul>
+              {Object.entries(
+                result.xai.key_indicators || result.xai.keypoints
+              ).map(([key, value]) => (
+                <li key={key}>
+                  <strong>{key}:</strong> {value}
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+
+        {/* Temporal Analysis (Video Only) */}
+        {result.xai.temporal_analysis && (
+          <>
+            <h4>Temporal Analysis</h4>
+            <ul>
+              {Object.entries(result.xai.temporal_analysis).map(
+                ([key, value]) => (
+                  <li key={key}>
+                    <strong>{key}:</strong> {value}
+                  </li>
+                )
+              )}
+            </ul>
+          </>
+        )}
+
+        {/* Recommendations */}
+        {Array.isArray(result.xai.recommendations) && (
+          <>
+            <h4>Recommendations</h4>
+            <ul>
+              {result.xai.recommendations.map((rec, index) => (
+                <li key={index}>{rec}</li>
+              ))}
+            </ul>
+          </>
+        )}
       </div>
 
       {/* STATUS */}
