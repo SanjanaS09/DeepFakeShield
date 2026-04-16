@@ -3,7 +3,7 @@
 
 # # 🔐 SET API KEY
 # client = genai.Client(
-#     api_key="AQ.Ab8RN6JmjUKf2Pb5DTXBlO5QO5uO9u4Q58foxFiypxptk1hyHA")
+#     api_key="")
 
 # # ==========================================
 # # 🖼️ IMAGE REASONING
