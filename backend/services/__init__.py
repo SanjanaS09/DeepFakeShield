@@ -4,7 +4,6 @@ Contains service layer classes for detection, analysis, and explanation function
 Implements business logic and coordinates between models, features, and utilities
 """
 
-from .detection_service import DeepfakeDetectionService
 from .analysis_service import MediaAnalysisService
 from .explanation_service import ExplanationService
 
