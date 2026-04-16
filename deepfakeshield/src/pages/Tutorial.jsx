@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import "../styles/Tutorial.css";
 
 import uploadIcon from "../assets/upload.png";
@@ -7,6 +7,8 @@ import explainIcon from "../assets/explain.png";
 import extensionIcon from "../assets/extension.png";
 
 const Tutorial = () => {
+  const [activeVideo, setActiveVideo] = useState("image");
+
   const steps = [
     {
       id: 1,
@@ -34,6 +36,32 @@ const Tutorial = () => {
     },
   ];
 
+  const tutorialVideos = [
+    {
+      id: "image",
+      label: "Image Upload",
+      emoji: "🖼️",
+      src: "/tutorials/upload-image.mp4",
+      description: "How to upload an image file (.jpg, .png, .webp) for deepfake analysis.",
+    },
+    {
+      id: "video",
+      label: "Video Upload",
+      emoji: "🎬",
+      src: "/tutorials/upload-video.mp4",
+      description: "How to upload a video file (.mp4, .avi, .mov) and run temporal deepfake detection.",
+    },
+    {
+      id: "audio",
+      label: "Audio Upload",
+      emoji: "🎙️",
+      src: "/tutorials/upload-audio.mp4",
+      description: "How to upload an audio file (.wav, .mp3) to detect voice cloning or manipulation.",
+    },
+  ];
+
+  const active = tutorialVideos.find((v) => v.id === activeVideo);
+
   return (
     <main className="tutorial-page">
       <section className="tutorial-header">
@@ -44,6 +72,7 @@ const Tutorial = () => {
         </p>
       </section>
 
+      {/* Steps */}
       <section className="steps-section">
         <div className="vertical-line"></div>
         {steps.map((step) => (
@@ -52,13 +81,52 @@ const Tutorial = () => {
               <img src={step.icon} alt={step.title} />
             </div>
             <div className="step-content">
-              <h3>
-                Step {step.id}: {step.title}
-              </h3>
+              <h3>Step {step.id}: {step.title}</h3>
               <p>{step.desc}</p>
             </div>
           </div>
         ))}
+      </section>
+
+      {/* Video Tutorials — below all steps */}
+      <section className="video-tutorial-section">
+        <div className="video-tutorial-block">
+          <div className="video-tutorial-header">
+            <span className="video-tutorial-icon">📹</span>
+            <div>
+              <h2 className="video-tutorial-title">Upload Tutorials</h2>
+              <p className="video-tutorial-subtitle">
+                Select a media type to watch the step-by-step upload walkthrough.
+              </p>
+            </div>
+          </div>
+
+          <div className="video-tabs">
+            {tutorialVideos.map((v) => (
+              <button
+                key={v.id}
+                className={`video-tab-btn ${activeVideo === v.id ? "active" : ""}`}
+                onClick={() => setActiveVideo(v.id)}
+              >
+                <span className="tab-emoji">{v.emoji}</span>
+                <span>{v.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="video-player-wrapper">
+            <video
+              key={active.src}
+              controls
+              className="tutorial-video"
+              preload="metadata"
+            >
+              <source src={active.src} type="video/mp4" />
+              Your browser does not support HTML5 video.
+            </video>
+            <p className="video-description">{active.description}</p>
+          </div>
+        </div>
       </section>
     </main>
   );

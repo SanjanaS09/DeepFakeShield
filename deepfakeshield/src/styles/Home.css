@@ -120,13 +120,14 @@ body::after {
 /* === BUTTON === */
 .main-btn {
   display: inline-block;
+  position: relative;
+  z-index: 10;
   padding: 1rem 2.5rem;
   border-radius: 40px;
   font-weight: 600;
   text-decoration: none;
   letter-spacing: 0.5px;
-
-  /* Neon-glass gradient */
+  cursor: pointer;
   background: linear-gradient(135deg, #2ddcff, #8f7eff);
   color: #fff;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -279,17 +280,6 @@ body::after {
 
 .hero h1 {
   animation: pulse-glow 6s ease-in-out infinite;
-}
-
-
-//* === HOW IT WORKS SECTION === */
-.flow-section {
-  background: radial-gradient(circle at 40% 20%, #0b0d19, #060611 85%);
-  color: #ffffff;
-  font-family: "Montserrat", sans-serif;
-  padding: 8rem 2rem;
-  position: relative;''
-  overflow: hidden;
 }
 
 .flow-section::before {
