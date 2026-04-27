@@ -32,6 +32,18 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def resolve_runtime_path(env_var_name: str, default_path: Path) -> Path:
+    """Resolve a path from the environment, relative to the backend root when needed."""
+    configured_path = os.environ.get(env_var_name)
+    path = Path(configured_path) if configured_path else default_path
+    if not path.is_absolute():
+        path = (BACKEND_ROOT / path).resolve()
+    return path
+
+
+CHECKPOINTS_DIR = resolve_runtime_path("CHECKPOINTS_DIR", BACKEND_ROOT / "checkpoints")
+
 def encode_image_to_base64(image):
     _, buffer = cv2.imencode(".jpg", image)
     return base64.b64encode(buffer).decode("utf-8")
@@ -91,7 +103,7 @@ class RealDetectionService:
     def load_image_model(self):
         """Load image model from checkpoint"""
         try:
-            checkpoint_path = Path("checkpoints/image/best_model.pth")
+            checkpoint_path = CHECKPOINTS_DIR / "image" / "best_model.pth"
             if not checkpoint_path.exists():
                 logger.warning(f"Image model not found at {checkpoint_path}")
                 return None
@@ -121,7 +133,7 @@ class RealDetectionService:
             from models.video_detector_frame_based import FrameBasedVideoDetector
 
             self.video_model = FrameBasedVideoDetector(
-                model_path="checkpoints/video/best_model.pth",
+                model_path=str(CHECKPOINTS_DIR / "video" / "best_model.pth"),
                 device=str(self.device),
                 num_frames=8,
                 frame_size=(224, 224)
@@ -137,7 +149,7 @@ class RealDetectionService:
 
     def load_audio_model(self):
         try:
-            checkpoint_path = Path("checkpoints/audio/best_model.pth")
+            checkpoint_path = CHECKPOINTS_DIR / "audio" / "best_model.pth"
             if not checkpoint_path.exists():
                 logger.warning("Audio model not found")
                 return None
@@ -913,15 +925,17 @@ def get_recommendations(prediction: str, confidence: float) -> List[str]:
 # ============================================
 
 if __name__ == '__main__':
+    host = os.environ.get("HOST", "0.0.0.0")
+    port = int(os.environ.get("PORT", "5000"))
     print("\n" + "="*70)
     print("🛡️  DeepFake Shield - PRODUCTION MODE")
     print("="*70)
     print("🚀 Starting Flask server...")
-    print("📍 Access at: http://127.0.0.1:5000")
+    print(f"📍 Access at: http://{host}:{port}")
     print("🔗 API Endpoints:")
-    print("   - Image:  POST http://127.0.0.1:5000/api/detection/image")
-    print("   - Video:  POST http://127.0.0.1:5000/api/detection/video")
-    print("   - Audio:  POST http://127.0.0.1:5000/api/detection/audio")
+    print(f"   - Image:  POST http://{host}:{port}/api/detection/image")
+    print(f"   - Video:  POST http://{host}:{port}/api/detection/video")
+    print(f"   - Audio:  POST http://{host}:{port}/api/detection/audio")
     print("="*70 + "\n")
     
     # socketio.run(
@@ -931,4 +945,4 @@ if __name__ == '__main__':
     #     debug=False
     # )
 
-    app.run(host="127.0.0.1", port=5000)
+    app.run(host=host, port=port)

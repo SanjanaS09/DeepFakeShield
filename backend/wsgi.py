@@ -1,20 +1,14 @@
 """
-WSGI configuration for production deployment
-Used by Gunicorn, uWSGI, or similar WSGI servers
+WSGI entrypoint for production servers such as Gunicorn.
 """
 
 import os
-import sys
-from app import create_app
-from config import Config, ProductionConfig
 
-# Add the backend directory to Python path
-sys.path.insert(0, os.path.dirname(__file__))
+from app import app as application
 
-# Create application instance
-# Use ProductionConfig for production deployment
-config_class = ProductionConfig if os.environ.get('FLASK_ENV') == 'production' else Config
-application = create_app(config_class)
 
 if __name__ == "__main__":
-    application.run()
+    application.run(
+        host=os.environ.get("HOST", "0.0.0.0"),
+        port=int(os.environ.get("PORT", "5000")),
+    )

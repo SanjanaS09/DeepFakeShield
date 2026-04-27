@@ -1,0 +1,17 @@
+.git
+.venv
+deepfake_env
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+dataset
+uploads
+logs
+runs
+tests
+*.db
+.env
+.env.*
+output_image_heatmap.jpg

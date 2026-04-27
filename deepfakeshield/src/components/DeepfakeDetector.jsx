@@ -4,6 +4,7 @@ import ProcessingWindow from './ProcessingWindow';
 import ResultsWindow from './ResultsWindow';
 import axios from 'axios';
 import Heatmap from './Heatmap';
+import { API_BASE_URL } from '../config';
 // import io from 'socket.io-client';
 
 const DeepfakeDetector = () => {
@@ -19,11 +20,10 @@ const DeepfakeDetector = () => {
   // const socketRef = useRef(null);
   const stepCounterRef = useRef(0);
 
-  const BACKEND_URL = 'http://localhost:5000';
   const API_ENDPOINTS = {
-    image: `${BACKEND_URL}/api/detection/image`,
-    video: `${BACKEND_URL}/api/detection/video`,
-    audio: `${BACKEND_URL}/api/detection/audio`
+    image: `${API_BASE_URL}/api/detection/image`,
+    video: `${API_BASE_URL}/api/detection/video`,
+    audio: `${API_BASE_URL}/api/detection/audio`
   };
 
   // Initialize WebSocket connection
